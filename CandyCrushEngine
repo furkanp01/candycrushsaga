@@ -1,0 +1,58 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "raylib.h"
+#include <math.h>
+
+//Engine Part
+
+#define screenTitle "Candy Crush Saga"
+#define screenHeight 1080
+#define screenWidth 1920
+#define Blue
+#define Yellow
+#define Red
+#define Purple
+
+typedef struct ListNode {
+	int rows;
+	int columns;
+}ListNode_t;
+
+
+
+
+
+
+
+int main() {
+
+	//Fullscreen mode
+	SetConfigFlags(FLAG_FULLSCREEN_MODE);
+
+	//Initialize window
+	InitWindow(screenWidth, screenHeight, screenTitle);
+
+	//Set target FPS
+	SetTargetFPS(60);
+
+	
+	//Main Loop
+	while (!WindowShouldClose()) {
+		
+
+		
+		
+
+		BeginDrawing();
+		
+		DrawText(screenTitle, 540, 540, 100, RED);
+
+		EndDrawing();
+
+	}
+	CloseWindow();
+
+
+
+	return 0;
+}
