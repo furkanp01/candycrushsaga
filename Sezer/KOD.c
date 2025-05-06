@@ -2,79 +2,148 @@
 #include "raylib.h"
 #include <time.h>
 
-void StartGame() {
-	
+#define screenWidth 1366
+#define screenHeight 768
+#define gameWidth 900
+#define gameHeight 1280
+
+
+//Game states
+typedef enum {
+	MENU,
+	LEVELS,
+	SETTINGS,
+	GAME
+} gameScreen;
+
+//Can switch between states owing to this function
+typedef void (*screenFunction)(void);
+
+typedef struct {
+	Texture2D background, menu, levels;
+	Music music;
+	bool soundOn;
+	float scale;
+	int drawWidth, drawHeight, offsetX, offsetY;
+	screenFunction currentScreen;
+
+
+}gameRes;
+
+gameRes resources;
+
+//Initialize resources
+void initRes(void) {
+	resources.background= LoadTexture("C:/Images/background.png");
+	resources.menu = LoadTexture("C:/Images/menu.jpg");
+	resources.levels = LoadTexture("C:/Images/levels.png");
+	resources.music = LoadMusicStream("C:/Images/thememusic.mp3");
+	PlayMusicStream(resources.music);
+	resources.soundOn = true;
 }
-//Title properties
-#define screenTitle "Candy Crush Saga"
-#define fontSize 100
-#define titleColor RED
 
-//Properties for background board
-#define screenWidth 1920
-#define screenHeight 1080
+void unlodRes(void) {
+	UnloadTexture(resources.background);
+	UnloadTexture(resources.menu);
+	UnloadTexture(resources.levels);
+	UnloadMusicStream(resources.music);
+}
 
-//Properties for game screen
-#define gameWidth 680
-#define gameHeight 1080
+void drawmenuScreen(void) {
+
+
+
+}
+
+void drawlevelScreen(void) {
+
+
+
+
+}
+
+void settings(void) {
+
+
+
+
+
+}
+
+void drawgameScreen() {
+
+
+
+
+
+}
+
 
 int main() {
 
-	//Initialize Window
-	InitWindow(screenWidth, screenHeight, screenTitle);
+	//Resizable screen
+	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 
-	
+	//Initialize Window
+	InitWindow(screenWidth, screenHeight, "Candy Crush Saga");
+
+	//Minimum screen size
+	SetWindowMinSize(800, 600);
 
 	//Set FPS
 	SetTargetFPS(60);
-
-	//Title x and y positions
-	int posX = 500;
-	int posY = 540;
-
-	Vector2 mousePos = GetMousePosition();
-
-	Texture2D background = LoadTexture("C:/Images/backgroundWallpaper.png");
-	Texture2D character = LoadTexture("C:/Images/candyCharacter.png");
-	Texture2D logo = LoadTexture("C:/Images/candyLogo.png");
 	
-	Rectangle rec = { 850,600,250,70 };
-
+	//Initialize sound
+	InitAudioDevice();
+	initRes();
 	
 
-	const char *play = "Play";
-	//Time function for randomness
-	srand(time(NULL));
-	
+
 	//Main loop 
 	while (!WindowShouldClose()) {
 
+		int currentScreenWidth = GetScreenWidth();
+		int currentScreenHeight = GetScreenHeight();
+
+		float scale = (float)currentScreenHeight / (float)gameHeight;
+		int drawWidth = (int)(gameWidth * scale);
+		int drawHeight = currentScreenHeight;
+		int offsetX = (currentScreenWidth - drawWidth) / 2;
+		int offsetY = 0;
+		
+		UpdateMusicStream(resources.music);
+
+		if (!IsMusicStreamPlaying(resources.music) && resources.soundOn) {
+			StopMusicStream(resources.music);
+			PlayMusicStream(resources.music);
+		}
+        
 		
 		BeginDrawing();
-		ClearBackground(WHITE);
+		ClearBackground(RAYWHITE);
+
+
+		DrawTexture(resources.background, 0, 0, WHITE);
+
+		DrawTexturePro(
+			resources.menu,
+			(Rectangle) {
+			0, 0, (float)resources.menu.width, (float)resources.menu.height
+		},
+			(Rectangle) {
+			offsetX, offsetY, drawWidth, drawHeight
+		},
+			(Vector2) {
+			0, 0
+		}, 0.0f, WHITE);
+		
 		
 
-		DrawTexture(background, 0, 0, WHITE);
-		DrawTexture(character, 800, 700, WHITE);
-		DrawTexture(logo, 800, 0, WHITE);
-		DrawRectangleRounded(rec, 30, 10, PINK);
-		DrawText(play,920, 610, 50, BLACK);
-		
-		int mouseOver = CheckCollisionPointRec(mousePos, rec);
-
-		if (mouseOver && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-			StartGame();
-		}
-		
-		
-			
-		
         EndDrawing();
+
     }
 
-    CloseWindow();
-
+	CloseWindow();
     return 0;
-
 
 	}
