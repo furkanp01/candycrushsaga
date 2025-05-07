@@ -60,7 +60,7 @@ void initRes(void) {
 	resources.menu = LoadTexture("resources/menu.jpg");
 	resources.levels = LoadTexture("resources/levels.png");
 	resources.music = LoadMusicStream("resources/thememusic.mp3");
-	resources.soundOn = false;
+	resources.soundOn = true;
 	if (resources.soundOn) {
 		PlayMusicStream(resources.music);
 	}
@@ -77,9 +77,9 @@ void unloadRes(void) {
 
 
 
-void drawmenuScreen(void) {
-
-
+void drawmenuScreen() {
+	Sound sound;
+	sound = LoadSound("resources/button.mp3");
 	int currentScreenWidth = GetScreenWidth();
 	int currentScreenHeight = GetScreenHeight();
 
@@ -138,6 +138,12 @@ void drawmenuScreen(void) {
 	DrawRectangleRounded(settingsRec, 0.3f, 10, RED);
 	DrawTextEx(myFont, "Settings", settingsTextPos, fontSize, spacing, BLACK);
 
+	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+		if (CheckCollisionPointRec(GetMousePosition(), playRec)) {
+			PlaySound(sound);
+		}
+	}
+
 
 
 }
@@ -166,8 +172,11 @@ void drawgameScreen() {
 }
 
 
-int main() {
 
+
+
+int main() {
+	
 	//Resizable screen
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 
@@ -184,12 +193,13 @@ int main() {
 	InitAudioDevice();
 	initRes();
 
-
+	
 
 
 	//Main loop 
 	while (!WindowShouldClose()) {
-
+		
+		
 
 
 		UpdateMusicStream(resources.music);
@@ -217,7 +227,7 @@ int main() {
 		EndDrawing();
 
 	}
-
+	CloseAudioDevice();
 	CloseWindow();
 	return 0;
 
