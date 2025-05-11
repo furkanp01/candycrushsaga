@@ -376,33 +376,33 @@ bool LoadCandyTextures()
     bool success = true;
 
     // Dosya varlığını kontrol et ve yükle
-    if (FileExists("assets/candy_red.png"))
-        candyTextures[CANDY_RED] = LoadTexture("assets/candy_red.png");
+    if (FileExists("resources/candy5.png"))
+        candyTextures[CANDY_PURPLE] = LoadTexture("resources/candy5.png");
     else
         success = false;
 
-    if (FileExists("assets/candy_green.png"))
-        candyTextures[CANDY_GREEN] = LoadTexture("assets/candy_green.png");
+    if (FileExists("resources/candy0.png"))
+        candyTextures[CANDY_RED] = LoadTexture("resources/candy0.png");
     else
         success = false;
 
-    if (FileExists("assets/candy_blue.png"))
-        candyTextures[CANDY_BLUE] = LoadTexture("assets/candy_blue.png");
+    if (FileExists("resources/candy1.png"))
+        candyTextures[CANDY_YELLOW] = LoadTexture("resources/candy1.png");
     else
         success = false;
 
-    if (FileExists("assets/candy_yellow.png"))
-        candyTextures[CANDY_YELLOW] = LoadTexture("assets/candy_yellow.png");
+    if (FileExists("resources/candy2.png"))
+        candyTextures[CANDY_ORANGE] = LoadTexture("resources/candy2.png");
     else
         success = false;
 
-    if (FileExists("assets/candy_purple.png"))
-        candyTextures[CANDY_PURPLE] = LoadTexture("assets/candy_purple.png");
+    if (FileExists("resources/candy3.png"))
+        candyTextures[CANDY_GREEN] = LoadTexture("resources/candy3.png");
     else
         success = false;
 
-    if (FileExists("assets/candy_orange.png"))
-        candyTextures[CANDY_ORANGE] = LoadTexture("assets/candy_orange.png");
+    if (FileExists("resources/candy4.png"))
+        candyTextures[CANDY_BLUE] = LoadTexture("resources/candy4.png");
     else
         success = false;
 
