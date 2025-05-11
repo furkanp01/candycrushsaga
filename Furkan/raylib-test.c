@@ -144,8 +144,8 @@ gameState currentState = MENU;
 
 //Menu 
 void drawmenuScreen(void) {
-
-
+	Sound sound;
+	sound = LoadSound("resources/button.mp3");
 	int currentScreenWidth = GetScreenWidth();
 	int currentScreenHeight = GetScreenHeight();
 
@@ -219,6 +219,11 @@ void drawmenuScreen(void) {
 		}
 		if (CheckCollisionPointRec(mouseposS, settingsRec)) {
 			resources.showSettings = true;
+		}
+		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+			if (CheckCollisionPointRec(GetMousePosition(), playRect)) {
+				PlaySound(sound);
+			}
 		}
 	}
 
