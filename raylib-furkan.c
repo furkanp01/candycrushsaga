@@ -15,6 +15,7 @@
 #define boardoffsetX 100
 #define boardoffsetY 150
 #define candyTypes 5
+#define framecount 8
 
 
 
@@ -95,14 +96,19 @@ typedef struct {
 	bool isgameOver;
 	bool hasSelected;
 	bool soundOn;
-	bool showSettings;
+	bool showmenuSettings;
+	bool showlevelSettings;
+	bool showgameSettings;
+	bool confirmQuit;
+
 	float animationTimer;
 	float gameTime;
 
 	Texture2D candyTextures[candyTypes];
 	Texture2D specialTextures[4];
-	Texture2D backgroundWp, menuWp, levelWp;
+	Texture2D backgroundWp, levelWp, backIcon, settingsIcon;
 	Texture2D red;
+	Texture2D menu[framecount];
 	Sound swapSound;
 	Sound matchSound;
 	Sound specialSound;
@@ -125,14 +131,25 @@ void initRes() {
 	resources.candyTextures[4] = LoadTexture("resources/candy4.png");
 	resources.candyTextures[5] = LoadTexture("resources/candy5.png");
 	resources.backgroundWp = LoadTexture("resources/background.png");
-	resources.menuWp = LoadTexture("resources/menu.jpg");
+	resources.menu[0] = LoadTexture("resources/menu.png");
+	resources.menu[1] = LoadTexture("resources/menu1.png");
+	resources.menu[2] = LoadTexture("resources/menu2.png");
+	resources.menu[3] = LoadTexture("resources/menu3.png");
+	resources.menu[4] = LoadTexture("resources/menu4.png");
+	resources.menu[5] = LoadTexture("resources/menu5.png");
+	resources.menu[6] = LoadTexture("resources/menu6.png");
+	resources.menu[7] = LoadTexture("resources/menu7.png");
 	resources.levelWp = LoadTexture("resources/levels.png");
+	resources.backIcon = LoadTexture("resources/backIcon.png");
+	resources.settingsIcon = LoadTexture("resources/settingsIcon.png");
 	resources.music = LoadMusicStream("resources/thememusic.mp3");
 	resources.myFont = LoadFont("resources/font.ttf");
 	resources.swapSound = LoadSound("resources/swapSound.mp3");
 	resources.matchSound = LoadSound("resources/matchSound.mp3");
 	resources.specialSound = LoadSound("resources/specialSound.mp3");
 	resources.soundOn = true;
+
+
 
 
 	PlayMusicStream(resources.music);
@@ -144,8 +161,11 @@ gameState currentState = MENU;
 
 //Menu 
 void drawmenuScreen(void) {
-	Sound sound;
-	sound = LoadSound("resources/button.mp3");
+
+	static int currentFrame = 0;
+	static float frameTimer = 0.0f;
+	float frameDelay = 0.085f;
+
 	int currentScreenWidth = GetScreenWidth();
 	int currentScreenHeight = GetScreenHeight();
 
@@ -155,27 +175,36 @@ void drawmenuScreen(void) {
 	int offsetX = (currentScreenWidth - drawWidth) / 2;
 	int offsetY = 0;
 
+	frameTimer += GetFrameTime();
+	if (frameTimer >= frameDelay) {
+		frameTimer = 0.0f;
+		currentFrame = (currentFrame + 1) % framecount;
+	}
+
 
 	DrawTexture(resources.backgroundWp, 0, 0, WHITE);
 
-	if (!resources.showSettings) {
+	if (!resources.showmenuSettings) {
 		DrawTexture(resources.backgroundWp, 0, 0, WHITE);
 	}
 
 	DrawTexturePro(
-		resources.menuWp,
+		resources.menu[currentFrame],
 		(Rectangle) {
-		0, 0, (float)resources.menuWp.width, (float)resources.menuWp.height
+		0, 0, (float)resources.menu[currentFrame].width, (float)resources.menu[currentFrame].height
 	},
 		(Rectangle) {
 		offsetX, offsetY, drawWidth, drawHeight
 	},
 		(Vector2) {
 		0, 0
-	}, 0.0f, WHITE);
+	},
+		0.0f,
+		WHITE
+	);
 
 
-	Font myFont = LoadFont("resources/font.ttf");
+	
 	float buttonWidth = 200;
 	float buttonHeight = 60;
 	float posX = (screenWidth - buttonWidth) / 2;
@@ -188,7 +217,7 @@ void drawmenuScreen(void) {
 
 	float playY = currentScreenHeight / 2.0f;
 	Rectangle playRect = { centerX, playY, buttonWidth, buttonHeight };
-	Vector2 playTextSize = MeasureTextEx(myFont, "Play", fontSize, spacing);
+	Vector2 playTextSize = MeasureTextEx(resources.myFont, "Play", fontSize, spacing);
 	Vector2 playTextPos = {
 		centerX + (buttonWidth - playTextSize.x) / 2.0f,
 		playY + (buttonHeight - playTextSize.y) / 2.0f
@@ -197,7 +226,7 @@ void drawmenuScreen(void) {
 
 	float settingsY = playY + 100;
 	Rectangle settingsRec = { centerX, settingsY, buttonWidth, buttonHeight };
-	Vector2 settingsTextSize = MeasureTextEx(myFont, "Settings", fontSize, spacing);
+	Vector2 settingsTextSize = MeasureTextEx(resources.myFont, "Settings", fontSize, spacing);
 	Vector2 settingsTextPos = {
 		centerX + (buttonWidth - settingsTextSize.x) / 2.0f,
 		settingsY + (buttonHeight - settingsTextSize.y) / 2.0f
@@ -206,29 +235,24 @@ void drawmenuScreen(void) {
 
 	DrawRectangleRounded(playRect, 0.3f, 10, ORANGE);
 
-	DrawTextEx(myFont, "Play", playTextPos, fontSize, spacing, BLACK);
+	DrawTextEx(resources.myFont, "Play", playTextPos, fontSize, spacing, BLACK);
 
 	DrawRectangleRounded(settingsRec, 0.3f, 10, PINK);
 
-	DrawTextEx(myFont, "Settings", settingsTextPos, fontSize, spacing, BLACK);
+	DrawTextEx(resources.myFont, "Settings", settingsTextPos, fontSize, spacing, BLACK);
 
 	if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 		Vector2 mouseposS = GetMousePosition();
-		if (CheckCollisionPointRec(mouseposS, playRect) && !resources.showSettings) {
+		if (CheckCollisionPointRec(mouseposS, playRect) && !resources.showmenuSettings) {
 			currentState = LEVELS;
 		}
 		if (CheckCollisionPointRec(mouseposS, settingsRec)) {
-			resources.showSettings = true;
-		}
-		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-			if (CheckCollisionPointRec(GetMousePosition(), playRect)) {
-				PlaySound(sound);
-			}
+			resources.showmenuSettings = true;
 		}
 	}
 
 
-	if (resources.showSettings) {
+	if (resources.showmenuSettings) {
 
 		DrawRectangle(0, 0, currentScreenWidth, currentScreenHeight, Fade(BLACK, 0.8f));
 
@@ -238,29 +262,29 @@ void drawmenuScreen(void) {
 
 
 		const char* soundToggleText = resources.soundOn ? "Sound: ON" : "Sound: OFF";
-		Vector2 soundSize = MeasureTextEx(myFont, soundToggleText, fontSize, spacing);
+		Vector2 soundSize = MeasureTextEx(resources.myFont, soundToggleText, fontSize, spacing);
 		Vector2 soundPos = {
 			panel.x + (panel.width - soundSize.x) / 2,
 			panel.y + 30
 		};
-		DrawTextEx(myFont, soundToggleText, soundPos, fontSize, spacing, BLACK);
+		DrawTextEx(resources.myFont, soundToggleText, soundPos, fontSize, spacing, BLACK);
 
 		Rectangle soundToggle = { panel.x + 60, panel.y + 80, panel.width - 120, 50 };
 		DrawRectangleRounded(soundToggle, 0.3f, 10, PINK);
-		DrawTextEx(myFont, "Toggle Sound", (Vector2) { soundToggle.x + 10, soundToggle.y + 10 },
+		DrawTextEx(resources.myFont, "Toggle Sound", (Vector2) { soundToggle.x + 10, soundToggle.y + 10 },
 			fontSize, spacing, BLACK);
 
 
 		Vector2 closeButtonCenter = { panel.x + panel.width - 30, panel.y - 30 };
 		float closeButtonRadius = 25;
 		DrawCircleV(closeButtonCenter, closeButtonRadius, DARKGRAY);
-		DrawTextEx(myFont, "X", (Vector2) { closeButtonCenter.x - 8, closeButtonCenter.y - 12 }, 30, spacing, WHITE);
+		DrawTextEx(resources.myFont, "X", (Vector2) { closeButtonCenter.x - 8, closeButtonCenter.y - 12 }, 30, spacing, WHITE);
 
 
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			Vector2 mouse = GetMousePosition();
 			if (CheckCollisionPointCircle(mouse, closeButtonCenter, closeButtonRadius)) {
-				resources.showSettings = false;
+				resources.showmenuSettings = false;
 			}
 		}
 
@@ -278,16 +302,21 @@ void drawmenuScreen(void) {
 
 
 void drawlevelScreen(void) {
+
+
+
+
 	int currentScreenWidth = GetScreenWidth();
 	int currentScreenHeight = GetScreenHeight();
-
 	float scale = (float)currentScreenHeight / (float)gameHeight;
 	int drawWidth = (int)(gameWidth * scale);
 	int drawHeight = currentScreenHeight;
 	int offsetX = (currentScreenWidth - drawWidth) / 2;
 	int offsetY = 0;
 
+
 	DrawTexture(resources.backgroundWp, 0, 0, WHITE);
+
 
 	DrawTexturePro(
 		resources.levelWp,
@@ -299,8 +328,11 @@ void drawlevelScreen(void) {
 	},
 		(Vector2) {
 		0, 0
-	}, 0.0f, WHITE
+	},
+		0.0f,
+		WHITE
 	);
+
 
 	int buttonRadius = 40;
 	int buttonSpacing = 30;
@@ -311,6 +343,7 @@ void drawlevelScreen(void) {
 	for (int i = 0; i < 5; i++) {
 		int levelNum = 5 - i;
 		int cy = startY + i * (buttonRadius * 2 + buttonSpacing);
+
 		DrawCircle(centerX, cy, buttonRadius, LIGHTGRAY);
 		DrawCircleLines(centerX, cy, buttonRadius, DARKGRAY);
 
@@ -319,10 +352,95 @@ void drawlevelScreen(void) {
 
 		int fontSize = 32;
 		int textWidth = MeasureText(label, fontSize);
-		int textHeight = fontSize;
-		DrawText(label, centerX - textWidth / 2, cy - textHeight / 2, fontSize, BLACK);
+		DrawText(label, centerX - textWidth / 2, cy - fontSize / 2, fontSize, BLACK);
 	}
 
+
+	Vector2 backCenter = { 60, 60 };
+	Rectangle backRect = { backCenter.x - 30, backCenter.y - 30, 60, 60 };
+
+	DrawTexturePro(
+		resources.backIcon,
+		(Rectangle) {
+		0, 0, (float)resources.backIcon.width, (float)resources.backIcon.height
+	},
+		(Rectangle) {
+		backRect.x, backRect.y, backRect.width, backRect.height
+	},
+		(Vector2) {
+		0, 0
+	},
+		0.0f,
+		WHITE
+	);
+
+
+	Vector2 settingsCenter = { currentScreenWidth - 60, 60 };
+	Rectangle settingsRect = { settingsCenter.x - 30, settingsCenter.y - 30, 60, 60 };
+
+	DrawTexturePro(
+		resources.settingsIcon,
+		(Rectangle) {
+		0, 0, (float)resources.settingsIcon.width, (float)resources.settingsIcon.height
+	},
+		(Rectangle) {
+		settingsRect.x, settingsRect.y, settingsRect.width, settingsRect.height
+	},
+		(Vector2) {
+		0, 0
+	},
+		0.0f,
+		WHITE
+	);
+
+
+	Vector2 mouse = GetMousePosition();
+	if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+		if (CheckCollisionPointRec(mouse, backRect)) {
+			currentState = MENU;
+		}
+		if (CheckCollisionPointRec(mouse, settingsRect)) {
+			resources.showlevelSettings = true;
+		}
+	}
+	if (resources.showlevelSettings) {
+		// Ayar paneli arka planı
+		DrawRectangle(0, 0, currentScreenWidth, currentScreenHeight, Fade(BLACK, 0.8f));
+
+		Rectangle panel = { currentScreenWidth / 2 - 150, currentScreenHeight / 2 - 100, 300, 200 };
+		DrawRectangleRounded(panel, 0.3f, 10, ORANGE);
+
+		Font myFont = LoadFont("resources/font.ttf");
+		float fontSize = 25;
+		float spacing = 2;
+
+		// Ses yazısı
+		const char* soundText = resources.soundOn ? "Sound: ON" : "Sound: OFF";
+		Vector2 soundSize = MeasureTextEx(myFont, soundText, fontSize, spacing);
+		Vector2 soundPos = { panel.x + (panel.width - soundSize.x) / 2, panel.y + 30 };
+		DrawTextEx(myFont, soundText, soundPos, fontSize, spacing, BLACK);
+
+		// Ses butonu
+		Rectangle soundButton = { panel.x + 50, panel.y + 70, 200, 40 };
+		DrawRectangleRounded(soundButton, 0.3f, 10, PINK);
+		DrawTextEx(myFont, "Sound On/Off", (Vector2) { soundButton.x + 10, soundButton.y + 8 }, fontSize, spacing, BLACK);
+
+		// Çıkış butonu
+		Rectangle quitButton = { panel.x + 50, panel.y + 130, 200, 40 };
+		DrawRectangleRounded(quitButton, 0.3f, 10, RED);
+		DrawTextEx(resources.myFont, "Quit Game", (Vector2) { quitButton.x + 10, quitButton.y + 8 }, fontSize, spacing, BLACK);
+
+		Vector2 mouse = GetMousePosition();
+		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+			if (CheckCollisionPointRec(mouse, soundButton)) {
+				resources.soundOn = !resources.soundOn;
+				SetMasterVolume(resources.soundOn ? 1.0f : 0.0f);
+			}
+			if (CheckCollisionPointRec(mouse, quitButton)) {
+				CloseWindow();  // Oyunu kapat
+			}
+		}
+	}
 }
 
 
@@ -343,6 +461,11 @@ void ToggleSound() {
 
 void settings(void) {
 
+
+
+
+
+
 }
 
 
@@ -359,7 +482,7 @@ void drawgameScreen() {
 //Unload resources
 void unloadRes(void) {
 	UnloadTexture(resources.backgroundWp);
-	UnloadTexture(resources.menuWp);
+	UnloadTexture(resources.menu[framecount]);
 	UnloadTexture(resources.levelWp);
 	UnloadMusicStream(resources.music);
 	UnloadFont(resources.myFont);
@@ -412,6 +535,9 @@ int main() {
 			break;
 		case LEVELS:
 			drawlevelScreen();
+			break;
+		case GAME:
+			drawgameScreen();
 			break;
 		}
 
