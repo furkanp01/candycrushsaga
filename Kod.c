@@ -3,7 +3,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
+
 
 
 #define screenWidth 1366
@@ -14,8 +14,8 @@
 #define cellSize 100
 #define boardoffsetX 100
 #define boardoffsetY 150
-#define candyTypes 5
-
+#define candyTypes 6
+#define maxLevels 5
 
 
 //Game states
@@ -26,6 +26,7 @@ typedef enum {
 	GAMEOVER,
 	WIN,
 	LEVELUP,
+	QUIT
 }gameState;
 
 //Candy types
@@ -56,17 +57,18 @@ typedef enum {
 
 //Level structure
 typedef struct {
+	int levelId;
 	int targetScore;
 	int maxMoves;
-	float timeLimit;
-	int requiredspecialCandies;
+	bool isUnlocked;
+	int currentLevel;
 }levelState;
 
 //Candy structure
 typedef struct {
 	int baseType;
 	Vector2 position;
-	Vector2 targerPosition;
+	Vector2 targetPosition;
 	Vector2 startPosition;
 	float animTime;
 	float scale;
@@ -79,12 +81,10 @@ typedef struct {
 typedef struct {
 
 	candyState gameBoard[gridSize][gridSize];
-	levelState levels[5];
 	gameState state;
 
 	int score;
 	int moves;
-	int currentLevel;
 	int specialcandiesCreated;
 	int selectedRow;
 	int selectedColumn;
@@ -99,6 +99,7 @@ typedef struct {
 	bool showlevelSettings;
 	bool showgameSettings;
 	bool confirmQuit;
+	bool boardInitialized;
 
 	float animationTimer;
 	float gameTime;
@@ -115,9 +116,9 @@ typedef struct {
 
 	Font myFont;
 
-}gameBoard;
+}gameResources;
 
-gameBoard resources;
+gameResources resources;
 
 //Initialize resources
 void initRes() {
@@ -141,8 +142,6 @@ void initRes() {
 	resources.soundOn = true;
 
 
-
-
 	PlayMusicStream(resources.music);
 	SetMasterVolume(resources.soundOn ? 1.0f : 0.0f);
 
@@ -150,7 +149,7 @@ void initRes() {
 
 gameState currentState = MENU;
 
-//Menu 
+
 void drawmenuScreen(void) {
 
 	int currentScreenWidth = GetScreenWidth();
@@ -182,7 +181,6 @@ void drawmenuScreen(void) {
 	}, 0.0f, WHITE);
 
 
-	Font myFont = LoadFont("resources/font.ttf");
 	float buttonWidth = 200;
 	float buttonHeight = 60;
 	float posX = (screenWidth - buttonWidth) / 2;
@@ -195,7 +193,7 @@ void drawmenuScreen(void) {
 
 	float playY = currentScreenHeight / 2.0f;
 	Rectangle playRect = { centerX, playY, buttonWidth, buttonHeight };
-	Vector2 playTextSize = MeasureTextEx(myFont, "Play", fontSize, spacing);
+	Vector2 playTextSize = MeasureTextEx(resources.myFont, "Play", fontSize, spacing);
 	Vector2 playTextPos = {
 		centerX + (buttonWidth - playTextSize.x) / 2.0f,
 		playY + (buttonHeight - playTextSize.y) / 2.0f
@@ -204,7 +202,7 @@ void drawmenuScreen(void) {
 
 	float settingsY = playY + 100;
 	Rectangle settingsRec = { centerX, settingsY, buttonWidth, buttonHeight };
-	Vector2 settingsTextSize = MeasureTextEx(myFont, "Settings", fontSize, spacing);
+	Vector2 settingsTextSize = MeasureTextEx(resources.myFont, "Settings", fontSize, spacing);
 	Vector2 settingsTextPos = {
 		centerX + (buttonWidth - settingsTextSize.x) / 2.0f,
 		settingsY + (buttonHeight - settingsTextSize.y) / 2.0f
@@ -213,11 +211,11 @@ void drawmenuScreen(void) {
 
 	DrawRectangleRounded(playRect, 0.3f, 10, ORANGE);
 
-	DrawTextEx(myFont, "Play", playTextPos, fontSize, spacing, BLACK);
+	DrawTextEx(resources.myFont, "Play", playTextPos, fontSize, spacing, BLACK);
 
 	DrawRectangleRounded(settingsRec, 0.3f, 10, PINK);
 
-	DrawTextEx(myFont, "Settings", settingsTextPos, fontSize, spacing, BLACK);
+	DrawTextEx(resources.myFont, "Settings", settingsTextPos, fontSize, spacing, BLACK);
 
 	if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 		Vector2 mouseposS = GetMousePosition();
@@ -239,24 +237,24 @@ void drawmenuScreen(void) {
 		DrawRectangleRounded(panel, 10, 10, ORANGE);
 
 
-		const char* soundToggleText = resources.soundOn ? "Sound: ON" : "Sound: OFF";
-		Vector2 soundSize = MeasureTextEx(myFont, soundToggleText, fontSize, spacing);
+		const char* soundToggleText = resources.soundOn ? "Sound: ON" : "Sound: Off";
+		Vector2 soundSize = MeasureTextEx(resources.myFont, soundToggleText, fontSize, spacing);
 		Vector2 soundPos = {
 			panel.x + (panel.width - soundSize.x) / 2,
 			panel.y + 30
 		};
-		DrawTextEx(myFont, soundToggleText, soundPos, fontSize, spacing, BLACK);
+		DrawTextEx(resources.myFont, soundToggleText, soundPos, fontSize, spacing, BLACK);
 
 		Rectangle soundToggle = { panel.x + 60, panel.y + 80, panel.width - 120, 50 };
 		DrawRectangleRounded(soundToggle, 0.3f, 10, PINK);
-		DrawTextEx(myFont, "Toggle Sound", (Vector2) { soundToggle.x + 10, soundToggle.y + 10 },
+		DrawTextEx(resources.myFont, "Sound On/Off", (Vector2) { soundToggle.x + 10, soundToggle.y + 10 },
 			fontSize, spacing, BLACK);
 
 
 		Vector2 closeButtonCenter = { panel.x + panel.width - 30, panel.y - 30 };
 		float closeButtonRadius = 25;
 		DrawCircleV(closeButtonCenter, closeButtonRadius, DARKGRAY);
-		DrawTextEx(myFont, "X", (Vector2) { closeButtonCenter.x - 8, closeButtonCenter.y - 12 }, 30, spacing, WHITE);
+		DrawTextEx(resources.myFont, "X", (Vector2) { closeButtonCenter.x - 8, closeButtonCenter.y - 12 }, 30, spacing, WHITE);
 
 
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -277,12 +275,66 @@ void drawmenuScreen(void) {
 	}
 }
 
+bool isUnlocked[maxLevels] = { true,false,false,false,false };
 
+void loadlevelData() {
+	FILE* xPtr = fopen("levels.txt", "r");
+	if (xPtr == NULL) {
+		printf("File couldn't be opened.");
+			currentState = QUIT;
+	}
+	else
+	{
+		for (int i = 0;i < maxLevels;i++) {
+			int val;
+			     if (fscanf(xPtr, "%d", val) == 1) {
+					isUnlocked[i] = val;
+				}
+			}
+		fclose(xPtr);
+	}
+	
+}
+
+void savelevelData() {
+	FILE* xPtr = fopen("levels.txt", "w");
+	if (xPtr == NULL) {
+		printf("The file couldn't be opened.");
+		currentState = QUIT;
+	}
+	else{
+		for (int i = 0;i < maxLevels;i++) {
+			fprintf(xPtr, "%d\n", isUnlocked[i]);
+		}
+		fclose(xPtr);
+	}
+}
+
+void completeLevel(int level) {
+	if (level + 1 < maxLevels) {
+		isUnlocked[level + 1] = true;
+	}
+	savelevelData();
+}
+
+
+bool boardInitialized = false;
+
+void initgameBoard(void) {
+	for (int i = 0;i < gridSize;i++) {
+		for (int j = 0;j < gridSize;j++) {
+			int type = GetRandomValue(0, candyTypes - 1);
+			resources.gameBoard[i][j].baseType = type;
+			resources.gameBoard[i][j].position = (Vector2){ i * cellSize + boardoffsetX, j * cellSize + boardoffsetY };
+		}
+	}
+	boardInitialized = true;
+
+}
+
+currentLevel = 0;
 
 void drawlevelScreen(void) {
-
-	
-
 
 	int currentScreenWidth = GetScreenWidth();
 	int currentScreenHeight = GetScreenHeight();
@@ -292,10 +344,8 @@ void drawlevelScreen(void) {
 	int offsetX = (currentScreenWidth - drawWidth) / 2;
 	int offsetY = 0;
 
-	
 	DrawTexture(resources.backgroundWp, 0, 0, WHITE);
 
-	
 	DrawTexturePro(
 		resources.levelWp,
 		(Rectangle) {
@@ -306,34 +356,42 @@ void drawlevelScreen(void) {
 	},
 		(Vector2) {
 		0, 0
-	},
-		0.0f,
-		WHITE
+	}, 0.0f, WHITE
 	);
 
-	
-	int buttonRadius = 40;
-	int buttonSpacing = 30;
+
+	int buttonRadius = 25;
+	int buttonSpacing = 20;
 	int totalHeight = 5 * buttonRadius * 2 + 4 * buttonSpacing;
 	int startY = (currentScreenHeight - totalHeight) / 2 + buttonRadius;
-	int centerX = currentScreenWidth / 2;
+	int centerX = (currentScreenWidth / 2) + 5;
 
-	for (int i = 0; i < 5; i++) {
-		int levelNum = 5 - i;
+	for (int i = 0; i < maxLevels; i++) {
 		int cy = startY + i * (buttonRadius * 2 + buttonSpacing);
 
-		DrawCircle(centerX, cy, buttonRadius, LIGHTGRAY);
-		DrawCircleLines(centerX, cy, buttonRadius, DARKGRAY);
+		Color fillColor = isUnlocked[i] ? (Color) { 173, 216, 230, 255 } : GRAY; 
+		DrawCircle(centerX, cy, buttonRadius, fillColor);
+		DrawCircleLines(centerX, cy, buttonRadius, BLACK);
 
 		char label[2];
-		snprintf(label, sizeof(label), "%d", levelNum);
+		snprintf(label, sizeof(label), "%d", i + 1);
 
-		int fontSize = 32;
+		int fontSize = 30;
 		int textWidth = MeasureText(label, fontSize);
 		DrawText(label, centerX - textWidth / 2, cy - fontSize / 2, fontSize, BLACK);
+
+		
+		if (isUnlocked[i]) {
+			if (CheckCollisionPointCircle(GetMousePosition(), (Vector2) { centerX, cy }, buttonRadius)) {
+				if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+					currentLevel = i;
+					currentState = GAME;
+					initgameBoard();
+				}
+			}
+		}
 	}
 
-	
 	Vector2 backCenter = { 60, 60 };
 	Rectangle backRect = { backCenter.x - 30, backCenter.y - 30, 60, 60 };
 
@@ -347,81 +405,94 @@ void drawlevelScreen(void) {
 	},
 		(Vector2) {
 		0, 0
-	},
-		0.0f,
-		WHITE
+	}, 0.0f, WHITE
 	);
 
-	
-	Vector2 settingsCenter = { currentScreenWidth - 60, 60 };
-	Rectangle settingsRect = { settingsCenter.x - 30, settingsCenter.y - 30, 60, 60 };
-
-	DrawTexturePro(
-		resources.settingsIcon,
-		(Rectangle) {
-		0, 0, (float)resources.settingsIcon.width, (float)resources.settingsIcon.height
-	},
-		(Rectangle) {
-		settingsRect.x, settingsRect.y, settingsRect.width, settingsRect.height
-	},
-		(Vector2) {
-		0, 0
-	},
-		0.0f,
-		WHITE
-	);
-
-	
 	Vector2 mouse = GetMousePosition();
 	if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 		if (CheckCollisionPointRec(mouse, backRect)) {
 			currentState = MENU;
 		}
-		if (CheckCollisionPointRec(mouse, settingsRect)) {
-			resources.showlevelSettings = true;
+	}
+	int settingsSize = 50;
+	int settingsX = currentScreenWidth - settingsSize - 20; 
+	int settingsY = 20;
+	Rectangle settingsRect = { settingsX, settingsY, settingsSize, settingsSize };
+
+	DrawTextureEx(resources.settingsIcon, (Vector2) { settingsX, settingsY }, 0.0f,
+		(float)settingsSize / resources.settingsIcon.width, WHITE);
+
+
+
+	if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+		if (CheckCollisionPointRec(mouse, backRect)) {
+			currentState = MENU;
+		}
+		else if (CheckCollisionPointRec(mouse, settingsRect)) {
+			resources.showlevelSettings = !resources.showlevelSettings;  
 		}
 	}
-	if(resources.showlevelSettings) {
-		// Ayar paneli arka planı
-		DrawRectangle(0, 0, currentScreenWidth, currentScreenHeight, Fade(BLACK, 0.8f));
 
-		Rectangle panel = { currentScreenWidth / 2 - 150, currentScreenHeight / 2 - 100, 300, 200 };
-		DrawRectangleRounded(panel, 0.3f, 10, ORANGE);
+	if (resources.showlevelSettings) {
+		
+		int panelW = 400, panelH = 300;
+		int panelX = (currentScreenWidth - panelW) / 2;
+		int panelY = (GetScreenHeight() - panelH) / 2;
+		Rectangle panelRect = { panelX, panelY, panelW, panelH };
 
-		Font myFont = LoadFont("resources/font.ttf");
-		float fontSize = 25;
-		float spacing = 2;
+		DrawRectangleRounded(panelRect,0.1,1,Fade(DARKGRAY,2.0f));
+		DrawRectangleLines(panelX, panelY, panelW, panelH, BLACK);
 
-		// Ses yazısı
-		const char* soundText = resources.soundOn ? "Sound: ON" : "Sound: OFF";
-		Vector2 soundSize = MeasureTextEx(myFont, soundText, fontSize, spacing);
-		Vector2 soundPos = { panel.x + (panel.width - soundSize.x) / 2, panel.y + 30 };
-		DrawTextEx(myFont, soundText, soundPos, fontSize, spacing, BLACK);
+		
+		Rectangle soundBtn = { panelX + 125, panelY + 100, 150, 50 };
+		DrawRectangleRec(soundBtn, resources.soundOn ? GREEN : RED);
+		DrawText(resources.soundOn ? "Sound On" : "Sound Off", soundBtn.x + 25, soundBtn.y + 15, 20, BLACK);
 
-		// Ses butonu
-		Rectangle soundButton = { panel.x + 50, panel.y + 70, 200, 40 };
-		DrawRectangleRounded(soundButton, 0.3f, 10, PINK);
-		DrawTextEx(myFont, "Sound On/Off", (Vector2) { soundButton.x + 10, soundButton.y + 8 }, fontSize, spacing, BLACK);
+	
+		Rectangle backBtn = { panelX + panelW - 110, panelY + panelH - 60, 100, 40 };
+		DrawRectangleRec(backBtn, LIGHTGRAY);
+		DrawRectangleLines(backBtn.x, backBtn.y, backBtn.width, backBtn.height, BLACK);
+		DrawText("Back", backBtn.x + 30, backBtn.y + 10, 20, BLACK);
 
-		// Çıkış butonu
-		Rectangle quitButton = { panel.x + 50, panel.y + 130, 200, 40 };
-		DrawRectangleRounded(quitButton, 0.3f, 10, RED);
-		DrawTextEx(resources.myFont, "Quit Game", (Vector2) { quitButton.x + 10, quitButton.y + 8 }, fontSize, spacing, BLACK);
-
-		Vector2 mouse = GetMousePosition();
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-			if (CheckCollisionPointRec(mouse, soundButton)) {
+			Vector2 mouse = GetMousePosition();
+			if (CheckCollisionPointRec(mouse, soundBtn)) {
 				resources.soundOn = !resources.soundOn;
 				SetMasterVolume(resources.soundOn ? 1.0f : 0.0f);
 			}
-			if (CheckCollisionPointRec(mouse, quitButton)) {
-				CloseWindow();  // Oyunu kapat
+		}
+		
+		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+			Vector2 mouse = GetMousePosition();
+			if (CheckCollisionPointRec(mouse, backBtn)) {
+				resources.showlevelSettings = false;
+			 }
+		  }
+	   }
+	}
+
+
+
+
+void drawgameScreen(){
+
+	if (!boardInitialized) {
+		initgameBoard();
+	}
+	DrawTexture(resources.backgroundWp, 0, 0, WHITE);
+
+	for (int y = 0; y < gridSize; y++) {
+		for (int x = 0; x < gridSize; x++) {
+			int type = resources.gameBoard[y][x].baseType;
+			if (type >= 0 && type < candyTypes) {
+				Vector2 pos = resources.gameBoard[y][x].position;
+				DrawTexture(resources.candyTextures[type], pos.x, pos.y, WHITE);
 			}
 		}
 	}
+
+
 }
-
-
 
 
 
@@ -437,24 +508,7 @@ void ToggleSound() {
 	}
 }
 
-void settings(void) {
 
-
-
-
-
-
-}
-
-
-
-void drawgameScreen() {
-
-
-
-
-
-}
 
 
 //Unload resources
@@ -517,13 +571,16 @@ int main() {
 		case GAME:
 			drawgameScreen();
 			break;
+		
+		default:
+			puts("Error,please do a proper transaction.");
+			break;
 		}
+		
 
 		EndDrawing();
-
 	}
 
 	CloseWindow();
 	return 0;
-
 }
