@@ -440,13 +440,12 @@ void drawlevelScreen(void) {
 		int panelY = (GetScreenHeight() - panelH) / 2;
 		Rectangle panelRect = { panelX, panelY, panelW, panelH };
 
-		DrawRectangleRounded(panelRect,0.1,1,Fade(DARKGRAY,2.0f));
-		DrawRectangleLines(panelX, panelY, panelW, panelH, BLACK);
-
+		DrawRectangleRounded(panelRect,0.1,1,Fade(ORANGE,2.0f));
 		
+
 		Rectangle soundBtn = { panelX + 125, panelY + 100, 150, 50 };
 		DrawRectangleRec(soundBtn, resources.soundOn ? GREEN : RED);
-		DrawText(resources.soundOn ? "Sound On" : "Sound Off", soundBtn.x + 25, soundBtn.y + 15, 20, BLACK);
+		DrawText(resources.soundOn ? "Sound:On" : "Sound:Off", soundBtn.x + 25, soundBtn.y + 15, 20, BLACK);
 
 	
 		Rectangle backBtn = { panelX + panelW - 110, panelY + panelH - 60, 100, 40 };
