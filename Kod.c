@@ -11,9 +11,6 @@
 #define gameWidth 900
 #define gameHeight 1280
 #define gridSize 8
-#define cellSize 100
-#define boardoffsetX 100
-#define boardoffsetY 150
 #define candyTypes 6
 #define maxLevels 5
 
@@ -61,7 +58,6 @@ typedef struct {
 	int targetScore;
 	int maxMoves;
 	bool isUnlocked;
-	int currentLevel;
 }levelState;
 
 //Candy structure
@@ -103,11 +99,15 @@ typedef struct {
 
 	float animationTimer;
 	float gameTime;
+	float cellWidth;
+	float cellHeight;
+	float cellSize;
+	float boardoffsetX;
+	float boardoffsetY;
 
 	Texture2D candyTextures[candyTypes];
 	Texture2D specialTextures[4];
-	Texture2D backgroundWp, menuWp, levelWp,backIcon,settingsIcon;
-	Texture2D red;
+	Texture2D backgroundWp, menuWp, levelWp,backIcon,settingsIcon,gameboardWp;
 	Sound swapSound;
 	Sound matchSound;
 	Sound specialSound;
@@ -120,7 +120,17 @@ typedef struct {
 
 gameResources resources;
 
-//Initialize resources
+void initRes();
+void drawmenuScreen();
+void loadlevelData();
+void savelevelData();
+void completeLevel(int level);
+void drawlevelScreen();
+void initgameBoard();
+void drawgameScreen();
+void ToggleSound();
+void unloadRes();
+
 void initRes() {
 
 	resources.candyTextures[0] = LoadTexture("resources/candy0.png");
@@ -132,6 +142,7 @@ void initRes() {
 	resources.backgroundWp = LoadTexture("resources/background.png");
 	resources.menuWp = LoadTexture("resources/menu.jpg");
 	resources.levelWp = LoadTexture("resources/levels.png");
+	resources.gameboardWp = LoadTexture("resources/gameBoard.png");
 	resources.backIcon = LoadTexture("resources/backIcon.png");
 	resources.settingsIcon = LoadTexture("resources/settingsIcon.png");
 	resources.music = LoadMusicStream("resources/thememusic.mp3");
@@ -139,9 +150,15 @@ void initRes() {
 	resources.swapSound = LoadSound("resources/swapSound.mp3");
 	resources.matchSound = LoadSound("resources/matchSound.mp3");
 	resources.specialSound = LoadSound("resources/specialSound.mp3");
-	resources.soundOn = true;
+	resources.soundOn = false;
+	resources.cellWidth = (float)gameWidth / gridSize;
+	resources.cellHeight = (float)gameHeight / gridSize;
+	resources.cellSize = fmin(resources.cellWidth, resources.cellHeight);
 
-
+	int currentScreenWidth = GetScreenWidth();
+	int currentScreenHeight = GetScreenHeight();
+	resources.boardoffsetX = (currentScreenWidth - gridSize * resources.cellSize) / 2;
+	resources.boardoffsetY = (currentScreenHeight - gridSize * resources.cellSize) / 2;
 	PlayMusicStream(resources.music);
 	SetMasterVolume(resources.soundOn ? 1.0f : 0.0f);
 
@@ -150,7 +167,7 @@ void initRes() {
 gameState currentState = MENU;
 
 
-void drawmenuScreen(void) {
+void drawmenuScreen() {
 
 	int currentScreenWidth = GetScreenWidth();
 	int currentScreenHeight = GetScreenHeight();
@@ -287,7 +304,7 @@ void loadlevelData() {
 	{
 		for (int i = 0;i < maxLevels;i++) {
 			int val;
-			     if (fscanf(xPtr, "%d", val) == 1) {
+			     if (fscanf(xPtr, "%d", &val) == 1) {
 					isUnlocked[i] = val;
 				}
 			}
@@ -317,22 +334,7 @@ void completeLevel(int level) {
 	savelevelData();
 }
 
-
-bool boardInitialized = false;
-
-void initgameBoard(void) {
-	for (int i = 0;i < gridSize;i++) {
-		for (int j = 0;j < gridSize;j++) {
-			int type = GetRandomValue(0, candyTypes - 1);
-			resources.gameBoard[i][j].baseType = type;
-			resources.gameBoard[i][j].position = (Vector2){ i * cellSize + boardoffsetX, j * cellSize + boardoffsetY };
-		}
-	}
-	boardInitialized = true;
-
-}
-
-currentLevel = 0;
+int currentLevel = 0;
 
 void drawlevelScreen(void) {
 
@@ -409,11 +411,7 @@ void drawlevelScreen(void) {
 	);
 
 	Vector2 mouse = GetMousePosition();
-	if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-		if (CheckCollisionPointRec(mouse, backRect)) {
-			currentState = MENU;
-		}
-	}
+	
 	int settingsSize = 50;
 	int settingsX = currentScreenWidth - settingsSize - 20; 
 	int settingsY = 20;
@@ -470,28 +468,165 @@ void drawlevelScreen(void) {
 	   }
 	}
 
+	candyState gameBoard[gridSize][gridSize];
 
+	
+	bool boardInitialized = false;
+	
+	void initgameBoard(void) {
+	
+		srand(time(NULL));
 
+		for (int i = 0;i < gridSize;i++) {
+			for (int j = 0;j < gridSize;j++) {
 
-void drawgameScreen(){
+				resources.gameBoard[i][j].position=(Vector2){
+			    resources.boardoffsetX + i * resources.cellSize,
+				resources.boardoffsetY + j * resources.cellSize
+				};
 
-	if (!boardInitialized) {
-		initgameBoard();
+				resources.gameBoard[i][j].targetPosition = resources.gameBoard[i][j].position;
+				resources.gameBoard[i][j].baseType = rand() % candyTypes;
+				resources.gameBoard[i][j].animState = animNone;
+				resources.gameBoard[i][j].animTime = 2.0f;
+				resources.gameBoard[i][j].scale = 3.0f;
+				resources.gameBoard[i][j].alpha = 3.0f;
+			}
+
+		}
+		resources.score = 0;
+		resources.moves = 0;
+		resources.specialcandiesCreated = 0;
+		resources.selectedRow = -1;
+		resources.selectedColumn = -1;
+		resources.isMoving = false;
+		resources.isAnimating = false;
+		resources.isSwapping = false;
+		resources.isgameOver = false;
+		resources.hasSelected = false;
+		resources.boardInitialized = true;
 	}
-	DrawTexture(resources.backgroundWp, 0, 0, WHITE);
 
-	for (int y = 0; y < gridSize; y++) {
-		for (int x = 0; x < gridSize; x++) {
-			int type = resources.gameBoard[y][x].baseType;
-			if (type >= 0 && type < candyTypes) {
-				Vector2 pos = resources.gameBoard[y][x].position;
-				DrawTexture(resources.candyTextures[type], pos.x, pos.y, WHITE);
+	void drawgameScreen() {
+		
+		int currentScreenWidth = GetScreenWidth();
+		int currentScreenHeight = GetScreenHeight();
+
+		DrawTexture(resources.backgroundWp, 0, 0, WHITE);
+		if (!boardInitialized) {
+			initgameBoard();
+			resources.boardInitialized = true;
+		}
+
+		float scale = (float)currentScreenHeight / (float)gameHeight;
+		int drawWidth = (int)(gameWidth * scale);
+		int drawHeight = currentScreenHeight;
+		int offsetX = (currentScreenWidth - drawWidth) / 2;
+		int offsetY = 0;
+
+		DrawTexturePro(
+			resources.gameboardWp,
+			(Rectangle) {
+			0, 0, (float)resources.gameboardWp.width, (float)resources.gameboardWp.height
+		},
+			(Rectangle) {
+			offsetX, offsetY, drawWidth, drawHeight
+		},
+			(Vector2) {
+			0, 0
+		}, 0.0f, WHITE
+		);
+
+		for (int i = 0; i <= gridSize; i++) {
+			DrawLine(
+				resources.boardoffsetX + i * resources.cellSize,
+				resources.boardoffsetY,
+				resources.boardoffsetX + i * resources.cellSize,
+				resources.boardoffsetY + gridSize * resources.cellSize,
+				Fade(DARKGRAY, 0.3f)
+			);
+
+			DrawLine(
+				resources.boardoffsetX,
+				resources.boardoffsetY + i * resources.cellSize,
+				resources.boardoffsetX + gridSize * resources.cellSize,
+				resources.boardoffsetY + i * resources.cellSize,
+				Fade(DARKGRAY, 0.3f)
+			);
+		}
+
+		// Draw candies
+		for (int i = 0; i < gridSize; i++) {
+			for (int j = 0; j < gridSize; j++) {
+				candyState* candy = &resources.gameBoard[i][j];
+
+				// Draw candy only if it has a valid base type
+				if (candy->baseType >= 0 && candy->baseType < candyTypes) {
+					float drawSize = resources.cellSize * 0.9f * candy->scale; // Slightly smaller than cell size
+
+					DrawTexturePro(
+						resources.candyTextures[candy->baseType],
+						(Rectangle) {
+						0, 0,
+							(float)resources.candyTextures[candy->baseType].width,
+							(float)resources.candyTextures[candy->baseType].height
+					},
+						(Rectangle) {
+						candy->position.x + resources.cellSize / 2 - drawSize / 2,
+							candy->position.y + resources.cellSize / 2 - drawSize / 2,
+							drawSize, drawSize
+					},
+						(Vector2) {
+						0, 0
+					},
+						0.0f,
+						Fade(WHITE, candy->alpha)
+					);
+				}
+			}
+		}
+
+		// Draw score, moves, and level information
+		char scoreText[50];
+		sprintf(scoreText, "Score: %d", resources.score);
+		DrawText(scoreText, 20, 20, 30, BLACK);
+
+		char movesText[50];
+		sprintf(movesText, "Moves: %d", resources.moves);
+		DrawText(movesText, 20, 60, 30, BLACK);
+
+		char levelText[50];
+		sprintf(levelText, "Level: %d", currentLevel + 1);
+		DrawText(levelText, 20, 100, 30, BLACK);
+
+		// Draw back button
+		Vector2 backCenter = { 60, GetScreenHeight() - 60 };
+		Rectangle backRect = { backCenter.x - 30, backCenter.y - 30, 60, 60 };
+		DrawTexturePro(
+			resources.backIcon,
+			(Rectangle) {
+			0, 0, (float)resources.backIcon.width, (float)resources.backIcon.height
+		},
+			(Rectangle) {
+			backRect.x, backRect.y, backRect.width, backRect.height
+		},
+			(Vector2) {
+			0, 0
+		},
+			0.0f,
+			WHITE
+		);
+
+		
+		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+			Vector2 mousePos = GetMousePosition();
+			if (CheckCollisionPointRec(mousePos, backRect)) {
+				currentState = LEVELS;
+				resources.boardInitialized = false;
 			}
 		}
 	}
-
-
-}
+	
 
 
 
