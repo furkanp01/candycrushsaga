@@ -1,4 +1,4 @@
-v#include <stdio.h>
+#include <stdio.h>
 #include "raylib.h"
 #include <time.h>
 #include <stdlib.h>
