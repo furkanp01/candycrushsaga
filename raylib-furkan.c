@@ -134,6 +134,9 @@ void drawlevelScreen();
 void drawgameScreen();
 void ToggleSound();
 void unloadRes();
+bool hasMatchAfterSwap(int row1, int col1, int row2, int col2);
+bool checkMatchAt(int row, int col);
+
 
 //Initialize resources
 void initRes() {
@@ -362,9 +365,6 @@ int currentLevel = 0;
 
 void drawlevelScreen(void) {
 
-
-
-
 	int currentScreenWidth = GetScreenWidth();
 	int currentScreenHeight = GetScreenHeight();
 	float scale = (float)currentScreenHeight / (float)gameHeight;
@@ -373,9 +373,7 @@ void drawlevelScreen(void) {
 	int offsetX = (currentScreenWidth - drawWidth) / 2;
 	int offsetY = 0;
 
-
 	DrawTexture(resources.backgroundWp, 0, 0, WHITE);
-
 
 	DrawTexturePro(
 		resources.levelWp,
@@ -391,7 +389,6 @@ void drawlevelScreen(void) {
 		0.0f,
 		WHITE
 	);
-
 
 	int buttonRadius = 25;
 	int buttonSpacing = 20;
@@ -609,12 +606,50 @@ Vector2 getCellFromMouse(Vector2 mousePos) {
 }
 
 void swapCandies(int row1, int col1, int row2, int col2) {
+	if (hasMatchAfterSwap(row1, col1, row2, col2)) {
+		// Only swap if a match will be made
+		candyState temp = resources.gameBoard[row1][col1];
+		resources.gameBoard[row1][col1] = resources.gameBoard[row2][col2];
+		resources.gameBoard[row2][col2] = temp;
+
+		resources.gameBoard[row1][col1].position = (Vector2){ col1 * cellSize, row1 * cellSize };
+		resources.gameBoard[row2][col2].position = (Vector2){ col2 * cellSize, row2 * cellSize };
+	}
+}
+
+bool checkMatchAt(int row, int col) {
+	int type = resources.gameBoard[row][col].baseType;
+	if (type < 0) return false;
+
+	// Check horizontal
+	int count = 1;
+	for (int j = col - 1; j >= 0 && resources.gameBoard[row][j].baseType == type; j--) count++;
+	for (int j = col + 1; j < gridSize && resources.gameBoard[row][j].baseType == type; j++) count++;
+	if (count >= 3) return true;
+
+	// Check vertical
+	count = 1;
+	for (int i = row - 1; i >= 0 && resources.gameBoard[i][col].baseType == type; i--) count++;
+	for (int i = row + 1; i < gridSize && resources.gameBoard[i][col].baseType == type; i++) count++;
+	if (count >= 3) return true;
+
+	return false;
+}
+
+bool hasMatchAfterSwap(int row1, int col1, int row2, int col2) {
+	// Temporarily swap
 	candyState temp = resources.gameBoard[row1][col1];
 	resources.gameBoard[row1][col1] = resources.gameBoard[row2][col2];
 	resources.gameBoard[row2][col2] = temp;
 
-	resources.gameBoard[row1][col1].position = (Vector2){ col1 * cellSize, row1 * cellSize };
-	resources.gameBoard[row2][col2].position = (Vector2){ col2 * cellSize, row2 * cellSize };
+	bool found = checkMatchAt(row1, col1) || checkMatchAt(row2, col2);
+
+	// Swap back
+	temp = resources.gameBoard[row1][col1];
+	resources.gameBoard[row1][col1] = resources.gameBoard[row2][col2];
+	resources.gameBoard[row2][col2] = temp;
+
+	return found;
 }
 
 
