@@ -1,0 +1,1 @@
+burayı kullan sezer
