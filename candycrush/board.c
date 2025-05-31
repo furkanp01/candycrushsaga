@@ -3,6 +3,7 @@
 #include "board.h"
 #include "resources.h"
 
+// Global deÄŸiÅŸkenler
 Vector2 gridOffset;
 bool hasSelected = false;
 Vector2 selectedCell = { -1,-1 };
@@ -10,52 +11,60 @@ animSwap swapAnim = { 0 };
 animExplode explodeAnims[gridSize][gridSize] = { 0 };
 bool isSwapping = false;
 Vector2 swap1, swap2;
+bool pendingSwapCheck = false;
+bool revertSwap = false;
 
+// Puan hesaplama fonksiyonu
+void addScore(int count) {
+    currentScore += count * 20; // Her ÅŸeker iÃ§in 20 puan
+}
 
+// Grid pozisyonunu gÃ¼ncelleme
 void updateGridOffset() {
-	int currentscreenWidth = GetScreenWidth();
-	int currentscreenHeight = GetScreenHeight();
-	gridOffset.x = (currentscreenWidth - (gridSize * cellSize)) / 2;
-	gridOffset.y = (currentscreenHeight - (gridSize * cellSize)) / 2;
+    int currentscreenWidth = GetScreenWidth();
+    int currentscreenHeight = GetScreenHeight();
+    gridOffset.x = (currentscreenWidth - (gridSize * cellSize)) / 2;
+    gridOffset.y = (currentscreenHeight - (gridSize * cellSize)) / 2;
 }
 
+// Oyun tahtasÄ±nÄ± baÅŸlatma
 void initgameBoard() {
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize; j++) {
+            int validTypes[candyTypes];
+            int validCount = 0;
 
-	for (int i = 0; i < gridSize; i++) {
-		for (int j = 0; j < gridSize; j++) {
-			int validTypes[candyTypes];
-			int validCount = 0;
+            for (int type = 0; type < candyTypes; type++) {
+                bool valid = true;
 
-			for (int type = 0; type < candyTypes; type++) {
-				bool valid = true;
+                if (j >= 2 &&
+                    resources.gameBoard[i][j - 1].baseType == type &&
+                    resources.gameBoard[i][j - 2].baseType == type) {
+                    valid = false;
+                }
 
-				if (j >= 2 &&
-					resources.gameBoard[i][j - 1].baseType == type &&
-					resources.gameBoard[i][j - 2].baseType == type) {
-					valid = false;
-				}
+                if (i >= 2 &&
+                    resources.gameBoard[i - 1][j].baseType == type &&
+                    resources.gameBoard[i - 2][j].baseType == type) {
+                    valid = false;
+                }
 
-				if (i >= 2 &&
-					resources.gameBoard[i - 1][j].baseType == type &&
-					resources.gameBoard[i - 2][j].baseType == type) {
-					valid = false;
-				}
+                if (valid) {
+                    validTypes[validCount++] = type;
+                }
+            }
 
-				if (valid) {
-					validTypes[validCount++] = type;
-				}
-			}
-
-			int selected = validTypes[rand() % validCount];
-			resources.gameBoard[i][j].baseType = selected;
-			resources.gameBoard[i][j].position.x = j * cellSize;
-			resources.gameBoard[i][j].position.y = i * cellSize;
-		}
-	}
-	updateGridOffset();
-	removeMatches();
+            int selected = validTypes[rand() % validCount];
+            resources.gameBoard[i][j].baseType = selected;
+            resources.gameBoard[i][j].position.x = j * cellSize;
+            resources.gameBoard[i][j].position.y = i * cellSize;
+        }
+    }
+    updateGridOffset();
+    removeMatches();
 }
 
+// Åžekerleri Ã§izme
 void drawCandies() {
     for (int i = 0; i < gridSize; i++) {
         for (int j = 0; j < gridSize; j++) {
@@ -75,103 +84,101 @@ void drawCandies() {
     }
 }
 
+// Grid Ã§izgilerini Ã§izme
 void drawgridLines() {
-	Color boxColor = Fade(GRAY, 0.3f);
-	for (int i = 0; i < gridSize; i++) {
-		for (int j = 0; j < gridSize; j++) {
-			Rectangle cellRect = {
-				gridOffset.x + j * cellSize,
-				gridOffset.y + i * cellSize,
-				cellSize,
-				cellSize
-			};
-			DrawRectangleRoundedLines(cellRect, 0.2f, 6, boxColor);
-		}
-	}
-	updateGridOffset();
+    Color boxColor = Fade(GRAY, 0.3f);
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize; j++) {
+            Rectangle cellRect = {
+                gridOffset.x + j * cellSize,
+                gridOffset.y + i * cellSize,
+                cellSize,
+                cellSize
+            };
+            DrawRectangleRoundedLines(cellRect, 0.2f, 6, boxColor);
+        }
+    }
+    updateGridOffset();
 }
 
+// Mouse pozisyonundan hÃ¼cre koordinatlarÄ±nÄ± alma
 Vector2 getCellFromMouse(Vector2 mousePos) {
-	return (Vector2) {
-		(int)((mousePos.x - gridOffset.x) / cellSize),
-			(int)((mousePos.y - gridOffset.y) / cellSize)
-	};
+    return (Vector2) {
+        (int)((mousePos.x - gridOffset.x) / cellSize),
+            (int)((mousePos.y - gridOffset.y) / cellSize)
+    };
 }
 
+// Åžekerleri deÄŸiÅŸtirme
 void swapCandies(int row1, int col1, int row2, int col2, bool playSound) {
-	if (playSound) PlaySound(resources.swapSound);
-	swap1 = (Vector2){ col1, row1 };
-	swap2 = (Vector2){ col2, row2 };
+    if (playSound) PlaySound(resources.swapSound);
+    swap1 = (Vector2){ col1, row1 };
+    swap2 = (Vector2){ col2, row2 };
 
-	candyState temp = resources.gameBoard[row1][col1];
-	resources.gameBoard[row1][col1] = resources.gameBoard[row2][col2];
-	resources.gameBoard[row2][col2] = temp;
+    candyState temp = resources.gameBoard[row1][col1];
+    resources.gameBoard[row1][col1] = resources.gameBoard[row2][col2];
+    resources.gameBoard[row2][col2] = temp;
 
-	swapAnim.startPos = resources.gameBoard[row2][col2].position;
-	swapAnim.endPos = (Vector2){ col2 * cellSize, row2 * cellSize };
-	swapAnim.t = 0.0f;
-	swapAnim.active = true;
-	isSwapping = true;
+    swapAnim.startPos = resources.gameBoard[row2][col2].position;
+    swapAnim.endPos = (Vector2){ col2 * cellSize, row2 * cellSize };
+    swapAnim.t = 0.0f;
+    swapAnim.active = true;
+    isSwapping = true;
 }
 
-
+// VektÃ¶r interpolasyonu
 Vector2 vector2Lerp(Vector2 a, Vector2 b, float t) {
-	Vector2 result;
-	result.x = a.x + (b.x - a.x) * t;
-	result.y = a.y + (b.y - a.y) * t;
-	return result;
+    Vector2 result;
+    result.x = a.x + (b.x - a.x) * t;
+    result.y = a.y + (b.y - a.y) * t;
+    return result;
 }
 
-bool pendingSwapCheck = false;
-bool revertSwap = false;
-
-
-
-
-
+// ÃœÃ§lÃ¼ eÅŸleÅŸme kontrolÃ¼
 bool hasThreeMatchOnBoard() {
-	for (int i = 0; i < gridSize; i++) {
-		for (int j = 0; j < gridSize; j++) {
-			int t = resources.gameBoard[i][j].baseType;
-			if (t < 0) continue;
-			// Yatay
-			if (j + 2 < gridSize &&
-				resources.gameBoard[i][j + 1].baseType == t &&
-				resources.gameBoard[i][j + 2].baseType == t)
-				return true;
-			// Dikey
-			if (i + 2 < gridSize &&
-				resources.gameBoard[i + 1][j].baseType == t &&
-				resources.gameBoard[i + 2][j].baseType == t)
-				return true;
-		}
-	}
-	return false;
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize; j++) {
+            int t = resources.gameBoard[i][j].baseType;
+            if (t < 0) continue;
+            // Yatay
+            if (j + 2 < gridSize &&
+                resources.gameBoard[i][j + 1].baseType == t &&
+                resources.gameBoard[i][j + 2].baseType == t)
+                return true;
+            // Dikey
+            if (i + 2 < gridSize &&
+                resources.gameBoard[i + 1][j].baseType == t &&
+                resources.gameBoard[i + 2][j].baseType == t)
+                return true;
+        }
+    }
+    return false;
 }
 
+// GeÃ§erli swap kontrolÃ¼
 bool isValidSwap(int row1, int col1, int row2, int col2) {
     int s1 = resources.gameBoard[row1][col1].specialType;
     int s2 = resources.gameBoard[row2][col2].specialType;
     int t1 = resources.gameBoard[row1][col1].baseType;
     int t2 = resources.gameBoard[row2][col2].baseType;
 
-    // Ýkisi de normal ve ayný renk ise, swap anlamsýz (klasik Candy Crush mantýðý)
+    // Ä°kisi de normal ve aynÄ± renk ise, swap anlamsÄ±z
     if (s1 == 0 && s2 == 0 && t1 == t2)
         return false;
 
-    // Sadece komþu olanlar swap yapýlabilir
+    // Sadece komÅŸu olanlar swap yapÄ±labilir
     int dx = abs(col1 - col2);
     int dy = abs(row1 - row2);
     if (!((dx == 1 && dy == 0) || (dx == 0 && dy == 1))) return false;
 
-    // Swap'ý uygula
+    // Swap'Ä± uygula
     candyState temp = resources.gameBoard[row1][col1];
     resources.gameBoard[row1][col1] = resources.gameBoard[row2][col2];
     resources.gameBoard[row2][col2] = temp;
 
     bool hasMatch = hasThreeMatchOnBoard();
 
-    // Swap'ý geri al
+    // Swap'Ä± geri al
     temp = resources.gameBoard[row1][col1];
     resources.gameBoard[row1][col1] = resources.gameBoard[row2][col2];
     resources.gameBoard[row2][col2] = temp;
@@ -179,96 +186,21 @@ bool isValidSwap(int row1, int col1, int row2, int col2) {
     return hasMatch;
 }
 
-
+// Patlama animasyonunu gÃ¼ncelleme
 void updateExplodeAnimation(float delta) {
-	for (int i = 0; i < gridSize; i++) {
-		for (int j = 0; j < gridSize; j++) {
-			if (explodeAnims[i][j].active) {
-				explodeAnims[i][j].timer += delta;
-				if (explodeAnims[i][j].timer >= explodeDuration) {
-					explodeAnims[i][j].active = false;
-				}
-			}
-		}
-	}
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize; j++) {
+            if (explodeAnims[i][j].active) {
+                explodeAnims[i][j].timer += delta;
+                if (explodeAnims[i][j].timer >= explodeDuration) {
+                    explodeAnims[i][j].active = false;
+                }
+            }
+        }
+    }
 }
 
-bool checkFourMatchAndMakeStriped() {
-	bool found = false;
-	// --- YATAY ---
-	for (int i = 0; i < gridSize; i++) {
-		for (int j = 0; j < gridSize - 3; j++) {
-			int t = resources.gameBoard[i][j].baseType;
-			if (t >= 0 &&
-				t == resources.gameBoard[i][j + 1].baseType &&
-				t == resources.gameBoard[i][j + 2].baseType &&
-				t == resources.gameBoard[i][j + 3].baseType) {
-				int specialIndex = j + 1; // Swap yapýlan yeri burada ayarlayabilirsin
-				for (int k = 0; k < 4; k++) {
-					int col = j + k;
-					if (col == specialIndex) {
-						resources.gameBoard[i][col].baseType = t;
-						resources.gameBoard[i][col].specialType = 1; // Yatay çizgili
-					}
-					else {
-						resources.gameBoard[i][col].baseType = -1;
-						resources.gameBoard[i][col].specialType = 0;
-						explodeAnims[i][col].active = true;
-						explodeAnims[i][col].timer = 0.0f;
-					}
-				}
-				found = true;
-			}
-		}
-	}
-	// --- DÝKEY ---
-	for (int j = 0; j < gridSize; j++) {
-		for (int i = 0; i < gridSize - 3; i++) {
-			int t = resources.gameBoard[i][j].baseType;
-			if (t >= 0 &&
-				t == resources.gameBoard[i + 1][j].baseType &&
-				t == resources.gameBoard[i + 2][j].baseType &&
-				t == resources.gameBoard[i + 3][j].baseType) {
-				int specialIndex = i + 1;
-				for (int k = 0; k < 4; k++) {
-					int row = i + k;
-					if (row == specialIndex) {
-						resources.gameBoard[row][j].baseType = t;
-						resources.gameBoard[row][j].specialType = 2; // Dikey çizgili
-					}
-					else {
-						resources.gameBoard[row][j].baseType = -1;
-						resources.gameBoard[row][j].specialType = 0;
-						explodeAnims[row][j].active = true;
-						explodeAnims[row][j].timer = 0.0f;
-					}
-				}
-				found = true;
-			}
-		}
-	}
-	return found;
-}
-
-
-void triggerFourStripedHorizontal(int row, int col) {
-	for (int j = 0; j < gridSize; j++) {
-		resources.gameBoard[row][j].baseType = -1;
-		resources.gameBoard[row][j].specialType = 0;
-		explodeAnims[row][j].active = true;
-		explodeAnims[row][j].timer = 0.0f;
-	}
-}
-
-
-void triggerFourStripedVertical(int row, int col) {
-	for (int i = 0; i < gridSize; i++) {
-		resources.gameBoard[i][col].baseType = -1;
-		resources.gameBoard[i][col].specialType = 0;
-		explodeAnims[i][col].active = true;
-		explodeAnims[i][col].timer = 0.0f;
-	}
-}
+// Ã–zel ÅŸeker eÅŸleÅŸmelerini kontrol etme
 bool checkSpecialCandyMatches() {
     bool found = false;
     // YATAY
@@ -284,7 +216,7 @@ bool checkSpecialCandyMatches() {
             if (t == resources.gameBoard[i][j + 1].baseType &&
                 t == resources.gameBoard[i][j + 2].baseType) {
 
-                // Önce çizgili þekerleri kontrol et
+                // Ã–nce Ã§izgili ÅŸekerleri kontrol et
                 if (s0 == 1) { triggerFourStripedHorizontal(i, j); found = true; }
                 if (s1 == 1) { triggerFourStripedHorizontal(i, j + 1); found = true; }
                 if (s2 == 1) { triggerFourStripedHorizontal(i, j + 2); found = true; }
@@ -292,20 +224,32 @@ bool checkSpecialCandyMatches() {
                 if (s1 == 2) { triggerFourStripedVertical(i, j + 1); found = true; }
                 if (s2 == 2) { triggerFourStripedVertical(i, j + 2); found = true; }
 
-                // Sonra paket þekerleri kontrol et
+                // Sonra paket ÅŸekerleri kontrol et
                 if (s0 == 3) { triggerWrappedPackage(i, j); found = true; }
                 if (s1 == 3) { triggerWrappedPackage(i, j + 1); found = true; }
                 if (s2 == 3) { triggerWrappedPackage(i, j + 2); found = true; }
 
-                // Normal þekerleri sil
-                if (s0 == 0) { resources.gameBoard[i][j].baseType = -1; resources.gameBoard[i][j].specialType = 0; }
-                if (s1 == 0) { resources.gameBoard[i][j + 1].baseType = -1; resources.gameBoard[i][j + 1].specialType = 0; }
-                if (s2 == 0) { resources.gameBoard[i][j + 2].baseType = -1; resources.gameBoard[i][j + 2].specialType = 0; }
+                // Normal ÅŸekerleri sil
+                if (s0 == 0) {
+                    resources.gameBoard[i][j].baseType = -1;
+                    resources.gameBoard[i][j].specialType = 0;
+                    addScore(1);
+                }
+                if (s1 == 0) {
+                    resources.gameBoard[i][j + 1].baseType = -1;
+                    resources.gameBoard[i][j + 1].specialType = 0;
+                    addScore(1);
+                }
+                if (s2 == 0) {
+                    resources.gameBoard[i][j + 2].baseType = -1;
+                    resources.gameBoard[i][j + 2].specialType = 0;
+                    addScore(1);
+                }
             }
         }
     }
 
-    // DÝKEY
+    // DÄ°KEY
     for (int j = 0; j < gridSize; j++) {
         for (int i = 0; i < gridSize - 2; i++) {
             int t = resources.gameBoard[i][j].baseType;
@@ -318,7 +262,7 @@ bool checkSpecialCandyMatches() {
             if (t == resources.gameBoard[i + 1][j].baseType &&
                 t == resources.gameBoard[i + 2][j].baseType) {
 
-                // Önce çizgili þekerleri kontrol et
+                // Ã–nce Ã§izgili ÅŸekerleri kontrol et
                 if (s0 == 1) { triggerFourStripedHorizontal(i, j); found = true; }
                 if (s1 == 1) { triggerFourStripedHorizontal(i + 1, j); found = true; }
                 if (s2 == 1) { triggerFourStripedHorizontal(i + 2, j); found = true; }
@@ -326,200 +270,34 @@ bool checkSpecialCandyMatches() {
                 if (s1 == 2) { triggerFourStripedVertical(i + 1, j); found = true; }
                 if (s2 == 2) { triggerFourStripedVertical(i + 2, j); found = true; }
 
-                // Sonra paket þekerleri kontrol et
+                // Sonra paket ÅŸekerleri kontrol et
                 if (s0 == 3) { triggerWrappedPackage(i, j); found = true; }
                 if (s1 == 3) { triggerWrappedPackage(i + 1, j); found = true; }
                 if (s2 == 3) { triggerWrappedPackage(i + 2, j); found = true; }
 
-                // Normal þekerleri sil
-                if (s0 == 0) { resources.gameBoard[i][j].baseType = -1; resources.gameBoard[i][j].specialType = 0; }
-                if (s1 == 0) { resources.gameBoard[i + 1][j].baseType = -1; resources.gameBoard[i + 1][j].specialType = 0; }
-                if (s2 == 0) { resources.gameBoard[i + 2][j].baseType = -1; resources.gameBoard[i + 2][j].specialType = 0; }
+                // Normal ÅŸekerleri sil
+                if (s0 == 0) {
+                    resources.gameBoard[i][j].baseType = -1;
+                    resources.gameBoard[i][j].specialType = 0;
+                    addScore(1);
+                }
+                if (s1 == 0) {
+                    resources.gameBoard[i + 1][j].baseType = -1;
+                    resources.gameBoard[i + 1][j].specialType = 0;
+                    addScore(1);
+                }
+                if (s2 == 0) {
+                    resources.gameBoard[i + 2][j].baseType = -1;
+                    resources.gameBoard[i + 2][j].specialType = 0;
+                    addScore(1);
+                }
             }
         }
     }
     return found;
 }
 
-
-
-
-// 5’LÝ ÞEKER (RENK BOMBASI) EÞLEÞME VE PATLATMA
-bool checkFiveMatchAndMakeColorBomb() {
-	bool found = false;
-	// --- YATAY ---
-	for (int i = 0; i < gridSize; i++) {
-		for (int j = 0; j < gridSize - 4; j++) {
-			int t = resources.gameBoard[i][j].baseType;
-			if (t >= 0 &&
-				t == resources.gameBoard[i][j + 1].baseType &&
-				t == resources.gameBoard[i][j + 2].baseType &&
-				t == resources.gameBoard[i][j + 3].baseType &&
-				t == resources.gameBoard[i][j + 4].baseType) {
-				int center = j + 2;
-				for (int k = 0; k < 5; k++) {
-					resources.gameBoard[i][j + k].baseType = -1;
-					resources.gameBoard[i][j + k].specialType = 0;
-					explodeAnims[i][j + k].active = true;
-					explodeAnims[i][j + k].timer = 0.0f;
-				}
-				resources.gameBoard[i][center].baseType = t;
-				resources.gameBoard[i][center].specialType = 4; // renk bombasý
-				found = true;
-			}
-		}
-	}
-	// --- DÝKEY ---
-	for (int j = 0; j < gridSize; j++) {
-		for (int i = 0; i < gridSize - 4; i++) {
-			int t = resources.gameBoard[i][j].baseType;
-			if (t >= 0 &&
-				t == resources.gameBoard[i + 1][j].baseType &&
-				t == resources.gameBoard[i + 2][j].baseType &&
-				t == resources.gameBoard[i + 3][j].baseType &&
-				t == resources.gameBoard[i + 4][j].baseType) {
-				int center = i + 2;
-				for (int k = 0; k < 5; k++) {
-					resources.gameBoard[i + k][j].baseType = -1;
-					resources.gameBoard[i + k][j].specialType = 0;
-					explodeAnims[i + k][j].active = true;
-					explodeAnims[i + k][j].timer = 0.0f;
-				}
-				resources.gameBoard[center][j].baseType = t;
-				resources.gameBoard[center][j].specialType = 4; // renk bombasý
-				found = true;
-			}
-		}
-	}
-	return found;
-}
-
-void triggerFiveColorBomb(int row, int col, int targetBaseType) {
-	for (int i = 0; i < gridSize; i++)
-		for (int j = 0; j < gridSize; j++)
-			if (resources.gameBoard[i][j].baseType == targetBaseType) {
-				resources.gameBoard[i][j].baseType = -1;
-				resources.gameBoard[i][j].specialType = 0;
-				explodeAnims[i][j].active = true;
-				explodeAnims[i][j].timer = 0.0f;
-			}
-	resources.gameBoard[row][col].baseType = -1;
-	resources.gameBoard[row][col].specialType = 0;
-	explodeAnims[row][col].active = true;
-	explodeAnims[row][col].timer = 0.0f;
-}
-
-
-bool checkWrappedMatchAndMakePackage() {
-    bool found = false;
-    for (int i = 0; i < gridSize; i++) {
-        for (int j = 0; j < gridSize; j++) {
-            int t = resources.gameBoard[i][j].baseType;
-            if (t < 0) continue;
-            // T þekli (merkez)
-            if (i >= 1 && i < gridSize - 1 && j >= 1 && j < gridSize - 1 &&
-                t == resources.gameBoard[i][j - 1].baseType &&
-                t == resources.gameBoard[i][j + 1].baseType &&
-                t == resources.gameBoard[i - 1][j].baseType &&
-                t == resources.gameBoard[i + 1][j].baseType) {
-                resources.gameBoard[i][j - 1].baseType = -1;
-                resources.gameBoard[i][j + 1].baseType = -1;
-                resources.gameBoard[i - 1][j].baseType = -1;
-                resources.gameBoard[i + 1][j].baseType = -1;
-                resources.gameBoard[i][j - 1].specialType = 0;
-                resources.gameBoard[i][j + 1].specialType = 0;
-                resources.gameBoard[i - 1][j].specialType = 0;
-                resources.gameBoard[i + 1][j].specialType = 0;
-                resources.gameBoard[i][j].specialType = 3; // Paket þeker
-                found = true;
-            }
-            // L þekli (sol üst köþe örnek)
-            else if (i < gridSize - 2 && j < gridSize - 2 &&
-                t == resources.gameBoard[i + 1][j].baseType &&
-                t == resources.gameBoard[i + 2][j].baseType &&
-                t == resources.gameBoard[i][j + 1].baseType &&
-                t == resources.gameBoard[i][j + 2].baseType) {
-                resources.gameBoard[i + 1][j].baseType = -1;
-                resources.gameBoard[i + 2][j].baseType = -1;
-                resources.gameBoard[i][j + 1].baseType = -1;
-                resources.gameBoard[i][j + 2].baseType = -1;
-                resources.gameBoard[i + 1][j].specialType = 0;
-                resources.gameBoard[i + 2][j].specialType = 0;
-                resources.gameBoard[i][j + 1].specialType = 0;
-                resources.gameBoard[i][j + 2].specialType = 0;
-                resources.gameBoard[i][j].specialType = 3; // Paket þeker
-                found = true;
-            }
-            // L þekli (diðer varyasyonlar)
-            else if (i < gridSize - 2 && j >= 2 &&
-                t == resources.gameBoard[i + 1][j].baseType &&
-                t == resources.gameBoard[i + 2][j].baseType &&
-                t == resources.gameBoard[i][j - 1].baseType &&
-                t == resources.gameBoard[i][j - 2].baseType) {
-                resources.gameBoard[i + 1][j].baseType = -1;
-                resources.gameBoard[i + 2][j].baseType = -1;
-                resources.gameBoard[i][j - 1].baseType = -1;
-                resources.gameBoard[i][j - 2].baseType = -1;
-                resources.gameBoard[i + 1][j].specialType = 0;
-                resources.gameBoard[i + 2][j].specialType = 0;
-                resources.gameBoard[i][j - 1].specialType = 0;
-                resources.gameBoard[i][j - 2].specialType = 0;
-                resources.gameBoard[i][j].specialType = 3; // Paket þeker
-                found = true;
-            }
-            else if (i >= 2 && j < gridSize - 2 &&
-                t == resources.gameBoard[i - 1][j].baseType &&
-                t == resources.gameBoard[i - 2][j].baseType &&
-                t == resources.gameBoard[i][j + 1].baseType &&
-                t == resources.gameBoard[i][j + 2].baseType) {
-                resources.gameBoard[i - 1][j].baseType = -1;
-                resources.gameBoard[i - 2][j].baseType = -1;
-                resources.gameBoard[i][j + 1].baseType = -1;
-                resources.gameBoard[i][j + 2].baseType = -1;
-                resources.gameBoard[i - 1][j].specialType = 0;
-                resources.gameBoard[i - 2][j].specialType = 0;
-                resources.gameBoard[i][j + 1].specialType = 0;
-                resources.gameBoard[i][j + 2].specialType = 0;
-                resources.gameBoard[i][j].specialType = 3;
-                found = true;
-            }
-            else if (i >= 2 && j >= 2 &&
-                t == resources.gameBoard[i - 1][j].baseType &&
-                t == resources.gameBoard[i - 2][j].baseType &&
-                t == resources.gameBoard[i][j - 1].baseType &&
-                t == resources.gameBoard[i][j - 2].baseType) {
-                resources.gameBoard[i - 1][j].baseType = -1;
-                resources.gameBoard[i - 2][j].baseType = -1;
-                resources.gameBoard[i][j - 1].baseType = -1;
-                resources.gameBoard[i][j - 2].baseType = -1;
-                resources.gameBoard[i - 1][j].specialType = 0;
-                resources.gameBoard[i - 2][j].specialType = 0;
-                resources.gameBoard[i][j - 1].specialType = 0;
-                resources.gameBoard[i][j - 2].specialType = 0;
-                resources.gameBoard[i][j].specialType = 3;
-                found = true;
-            }
-        }
-    }
-    return found;
-}
-
-// --- Temel üçlü eþleþme: biri paket ise 3'ü de paket gibi patlar ---
-void triggerWrappedPackage(int row, int col) {
-    for (int i = row - 1; i <= row + 1; i++) {
-        for (int j = col - 1; j <= col + 1; j++) {
-            if (i >= 0 && i < gridSize && j >= 0 && j < gridSize) {
-                resources.gameBoard[i][j].baseType = -1;
-                resources.gameBoard[i][j].specialType = 0;
-                explodeAnims[i][j].active = true;
-                explodeAnims[i][j].timer = 0.0f;
-            }
-        }
-    }
-}
-
-
-// --- removeMatches zinciri: Hepsi zincirleme çaðrýlýr ---
+// EÅŸleÅŸmeleri kaldÄ±rma
 void removeMatches() {
     bool found;
     do {
@@ -527,12 +305,89 @@ void removeMatches() {
         if (checkFiveMatchAndMakeColorBomb()) found = true;
         if (checkWrappedMatchAndMakePackage()) found = true;
         if (checkFourMatchAndMakeStriped()) found = true;
-        if (checkSpecialCandyMatches()) found = true; // Yeni birleþtirilmiþ fonksiyon
+        if (checkSpecialCandyMatches()) found = true;
         if (found) PlaySound(resources.matchSound);
     } while (found);
 }
 
-// --- updateSwapAnimation zinciri ---
+// Yatay Ã§izgili ÅŸeker tetikleme
+void triggerFourStripedHorizontal(int row, int col) {
+    int count = 0;
+    for (int j = 0; j < gridSize; j++) {
+        if (resources.gameBoard[row][j].baseType != -1) {
+            count++;
+            resources.gameBoard[row][j].baseType = -1;
+            resources.gameBoard[row][j].specialType = 0;
+            explodeAnims[row][j].active = true;
+            explodeAnims[row][j].timer = 0.0f;
+        }
+    }
+    addScore(count);
+    removeMatches(); // Zincirleme reaksiyon iÃ§in
+}
+
+// Dikey Ã§izgili ÅŸeker tetikleme
+void triggerFourStripedVertical(int row, int col) {
+    int count = 0;
+    for (int i = 0; i < gridSize; i++) {
+        if (resources.gameBoard[i][col].baseType != -1) {
+            count++;
+            resources.gameBoard[i][col].baseType = -1;
+            resources.gameBoard[i][col].specialType = 0;
+            explodeAnims[i][col].active = true;
+            explodeAnims[i][col].timer = 0.0f;
+        }
+    }
+    addScore(count);
+    removeMatches(); // Zincirleme reaksiyon iÃ§in
+}
+
+// Paket ÅŸeker tetikleme
+void triggerWrappedPackage(int row, int col) {
+    int count = 0;
+    for (int i = row - 1; i <= row + 1; i++) {
+        for (int j = col - 1; j <= col + 1; j++) {
+            if (i >= 0 && i < gridSize && j >= 0 && j < gridSize) {
+                if (resources.gameBoard[i][j].baseType != -1) {
+                    count++;
+                    resources.gameBoard[i][j].baseType = -1;
+                    resources.gameBoard[i][j].specialType = 0;
+                    explodeAnims[i][j].active = true;
+                    explodeAnims[i][j].timer = 0.0f;
+                }
+            }
+        }
+    }
+    addScore(count);
+    removeMatches(); // Zincirleme reaksiyon iÃ§in
+}
+
+// Renk bombasÄ± tetikleme
+void triggerFiveColorBomb(int row, int col, int targetBaseType) {
+    int count = 0;
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize; j++) {
+            if (resources.gameBoard[i][j].baseType == targetBaseType) {
+                count++;
+                resources.gameBoard[i][j].baseType = -1;
+                resources.gameBoard[i][j].specialType = 0;
+                explodeAnims[i][j].active = true;
+                explodeAnims[i][j].timer = 0.0f;
+            }
+        }
+    }
+    if (resources.gameBoard[row][col].baseType != -1) {
+        count++;
+        resources.gameBoard[row][col].baseType = -1;
+        resources.gameBoard[row][col].specialType = 0;
+        explodeAnims[row][col].active = true;
+        explodeAnims[row][col].timer = 0.0f;
+    }
+    addScore(count);
+    removeMatches(); // Zincirleme reaksiyon iÃ§in
+}
+
+// Swap animasyonunu gÃ¼ncelleme
 void updateSwapAnimation(float delta) {
     if (swapAnim.active) {
         swapAnim.t += swapSpeed * delta;
@@ -563,7 +418,7 @@ void updateSwapAnimation(float delta) {
     }
 }
 
-
+// Åžeker seÃ§me
 void selectCandy() {
     if (isSwapping) return;
 
@@ -591,7 +446,7 @@ void selectCandy() {
                 int t1 = resources.gameBoard[row1][col1].baseType;
                 int t2 = resources.gameBoard[row2][col2].baseType;
 
-                // Renk bombasý swapý: biri color bomb ve diðeri normal þeker ise hemen patlat
+                // Renk bombasÄ± swapÄ±
                 if ((s1 == 4 && s2 == 0) || (s2 == 4 && s1 == 0)) {
                     int bombRow, bombCol, targetColor;
                     if (s1 == 4) {
@@ -609,11 +464,9 @@ void selectCandy() {
                     return;
                 }
 
-                // Paket þeker ve diðer özel þeker kombinasyonlarý için özel bir iþlem yapmak istersen buraya ekleyebilirsin.
-
                 resources.moves--;
 
-                // Swap geçerli mi? (Yani swap sonucu 3'lü veya daha fazla eþleþme oluþacak mý?)
+                // Swap geÃ§erli mi?
                 if (isValidSwap(row1, col1, row2, col2)) {
                     swapCandies(row1, col1, row2, col2, true);
                     pendingSwapCheck = true;
@@ -633,6 +486,7 @@ void selectCandy() {
     }
 }
 
+// Åžekerleri dÃ¼ÅŸÃ¼rme
 bool dropOneCandy() {
     bool moved = false;
     for (int col = 0; col < gridSize; col++) {
@@ -651,6 +505,7 @@ bool dropOneCandy() {
     return moved;
 }
 
+// Yeni ÅŸekerler oluÅŸturma
 bool spawnCandies() {
     bool spawned = false;
     for (int col = 0; col < gridSize; col++) {
@@ -666,6 +521,7 @@ bool spawnCandies() {
     return spawned;
 }
 
+// Åžeker dÃ¼ÅŸme animasyonunu gÃ¼ncelleme
 void updateCandyFallAnimation(float fallSpeed) {
     for (int i = 0; i < gridSize; i++) {
         for (int j = 0; j < gridSize; j++) {
@@ -687,7 +543,7 @@ void updateCandyFallAnimation(float fallSpeed) {
     }
 }
 
-
+// Oyun ekranÄ±nÄ± Ã§izme
 void drawgameScreen() {
     float delta = GetFrameTime();
     updateSwapAnimation(delta);
@@ -705,7 +561,7 @@ void drawgameScreen() {
         }
     }
 
-    // YENÝ ZÝNCÝR: drop/spawn sonrasý zincirleme removeMatches
+    // YENÄ° ZÄ°NCÄ°R: drop/spawn sonrasÄ± zincirleme removeMatches
     if (!anyAnimations) {
         if (dropOneCandy()) {
             candiesDropping = true;
@@ -715,7 +571,7 @@ void drawgameScreen() {
         }
         else if (candiesDropping) {
             candiesDropping = false;
-            removeMatches(); // Sadece zincirleme removeMatches çaðrýsý yeterli
+            removeMatches();
         }
     }
 
@@ -843,4 +699,247 @@ void drawgameScreen() {
             }
         }
     }
+}
+
+// 5'li eÅŸleÅŸme ve renk bombasÄ± oluÅŸturma
+bool checkFiveMatchAndMakeColorBomb() {
+    bool found = false;
+    // YATAY
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize - 4; j++) {
+            int t = resources.gameBoard[i][j].baseType;
+            if (t >= 0 &&
+                t == resources.gameBoard[i][j + 1].baseType &&
+                t == resources.gameBoard[i][j + 2].baseType &&
+                t == resources.gameBoard[i][j + 3].baseType &&
+                t == resources.gameBoard[i][j + 4].baseType) {
+                int center = j + 2;
+                for (int k = 0; k < 5; k++) {
+                    resources.gameBoard[i][j + k].baseType = -1;
+                    resources.gameBoard[i][j + k].specialType = 0;
+                    explodeAnims[i][j + k].active = true;
+                    explodeAnims[i][j + k].timer = 0.0f;
+                }
+                resources.gameBoard[i][center].baseType = t;
+                resources.gameBoard[i][center].specialType = 4; // renk bombasÄ±
+                found = true;
+            }
+        }
+    }
+    // DÄ°KEY
+    for (int j = 0; j < gridSize; j++) {
+        for (int i = 0; i < gridSize - 4; i++) {
+            int t = resources.gameBoard[i][j].baseType;
+            if (t >= 0 &&
+                t == resources.gameBoard[i + 1][j].baseType &&
+                t == resources.gameBoard[i + 2][j].baseType &&
+                t == resources.gameBoard[i + 3][j].baseType &&
+                t == resources.gameBoard[i + 4][j].baseType) {
+                int center = i + 2;
+                for (int k = 0; k < 5; k++) {
+                    resources.gameBoard[i + k][j].baseType = -1;
+                    resources.gameBoard[i + k][j].specialType = 0;
+                    explodeAnims[i + k][j].active = true;
+                    explodeAnims[i + k][j].timer = 0.0f;
+                }
+                resources.gameBoard[center][j].baseType = t;
+                resources.gameBoard[center][j].specialType = 4; // renk bombasÄ±
+                found = true;
+            }
+        }
+    }
+    return found;
+}
+
+// Paket ÅŸeker oluÅŸturma
+bool checkWrappedMatchAndMakePackage() {
+    bool found = false;
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize; j++) {
+            int t = resources.gameBoard[i][j].baseType;
+            if (t < 0) continue;
+            // T ÅŸekli (merkez)
+            if (i >= 1 && i < gridSize - 1 && j >= 1 && j < gridSize - 1 &&
+                t == resources.gameBoard[i][j - 1].baseType &&
+                t == resources.gameBoard[i][j + 1].baseType &&
+                t == resources.gameBoard[i - 1][j].baseType &&
+                t == resources.gameBoard[i + 1][j].baseType) {
+                resources.gameBoard[i][j - 1].baseType = -1;
+                resources.gameBoard[i][j + 1].baseType = -1;
+                resources.gameBoard[i - 1][j].baseType = -1;
+                resources.gameBoard[i + 1][j].baseType = -1;
+                resources.gameBoard[i][j - 1].specialType = 0;
+                resources.gameBoard[i][j + 1].specialType = 0;
+                resources.gameBoard[i - 1][j].specialType = 0;
+                resources.gameBoard[i + 1][j].specialType = 0;
+                resources.gameBoard[i][j].specialType = 3; // Paket ÅŸeker
+                found = true;
+            }
+            // L ÅŸekli (sol Ã¼st kÃ¶ÅŸe Ã¶rnek)
+            else if (i < gridSize - 2 && j < gridSize - 2 &&
+                t == resources.gameBoard[i + 1][j].baseType &&
+                t == resources.gameBoard[i + 2][j].baseType &&
+                t == resources.gameBoard[i][j + 1].baseType &&
+                t == resources.gameBoard[i][j + 2].baseType) {
+                resources.gameBoard[i + 1][j].baseType = -1;
+                resources.gameBoard[i + 2][j].baseType = -1;
+                resources.gameBoard[i][j + 1].baseType = -1;
+                resources.gameBoard[i][j + 2].baseType = -1;
+                resources.gameBoard[i + 1][j].specialType = 0;
+                resources.gameBoard[i + 2][j].specialType = 0;
+                resources.gameBoard[i][j + 1].specialType = 0;
+                resources.gameBoard[i][j + 2].specialType = 0;
+                resources.gameBoard[i][j].specialType = 3; // Paket ÅŸeker
+                found = true;
+            }
+            // L ÅŸekli (diÄŸer varyasyonlar)
+            else if (i < gridSize - 2 && j >= 2 &&
+                t == resources.gameBoard[i + 1][j].baseType &&
+                t == resources.gameBoard[i + 2][j].baseType &&
+                t == resources.gameBoard[i][j - 1].baseType &&
+                t == resources.gameBoard[i][j - 2].baseType) {
+                resources.gameBoard[i + 1][j].baseType = -1;
+                resources.gameBoard[i + 2][j].baseType = -1;
+                resources.gameBoard[i][j - 1].baseType = -1;
+                resources.gameBoard[i][j - 2].baseType = -1;
+                resources.gameBoard[i + 1][j].specialType = 0;
+                resources.gameBoard[i + 2][j].specialType = 0;
+                resources.gameBoard[i][j - 1].specialType = 0;
+                resources.gameBoard[i][j - 2].specialType = 0;
+                resources.gameBoard[i][j].specialType = 3; // Paket ÅŸeker
+                found = true;
+            }
+            else if (i >= 2 && j < gridSize - 2 &&
+                t == resources.gameBoard[i - 1][j].baseType &&
+                t == resources.gameBoard[i - 2][j].baseType &&
+                t == resources.gameBoard[i][j + 1].baseType &&
+                t == resources.gameBoard[i][j + 2].baseType) {
+                resources.gameBoard[i - 1][j].baseType = -1;
+                resources.gameBoard[i - 2][j].baseType = -1;
+                resources.gameBoard[i][j + 1].baseType = -1;
+                resources.gameBoard[i][j + 2].baseType = -1;
+                resources.gameBoard[i - 1][j].specialType = 0;
+                resources.gameBoard[i - 2][j].specialType = 0;
+                resources.gameBoard[i][j + 1].specialType = 0;
+                resources.gameBoard[i][j + 2].specialType = 0;
+                resources.gameBoard[i][j].specialType = 3;
+                found = true;
+            }
+            else if (i >= 2 && j >= 2 &&
+                t == resources.gameBoard[i - 1][j].baseType &&
+                t == resources.gameBoard[i - 2][j].baseType &&
+                t == resources.gameBoard[i][j - 1].baseType &&
+                t == resources.gameBoard[i][j - 2].baseType) {
+                resources.gameBoard[i - 1][j].baseType = -1;
+                resources.gameBoard[i - 2][j].baseType = -1;
+                resources.gameBoard[i][j - 1].baseType = -1;
+                resources.gameBoard[i][j - 2].baseType = -1;
+                resources.gameBoard[i - 1][j].specialType = 0;
+                resources.gameBoard[i - 2][j].specialType = 0;
+                resources.gameBoard[i][j - 1].specialType = 0;
+                resources.gameBoard[i][j - 2].specialType = 0;
+                resources.gameBoard[i][j].specialType = 3;
+                found = true;
+            }
+        }
+    }
+    return found;
+}
+
+// 4'lÃ¼ eÅŸleÅŸme ve Ã§izgili ÅŸeker oluÅŸturma
+bool checkFourMatchAndMakeStriped() {
+    bool found = false;
+    // YATAY
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize - 3; j++) {
+            int t = resources.gameBoard[i][j].baseType;
+            if (t >= 0 &&
+                t == resources.gameBoard[i][j + 1].baseType &&
+                t == resources.gameBoard[i][j + 2].baseType &&
+                t == resources.gameBoard[i][j + 3].baseType) {
+
+                // Oynanan hamlenin yapÄ±ldÄ±ÄŸÄ± yeri bul
+                int specialIndex = -1;
+                if (j == (int)swap1.x || j == (int)swap2.x) {
+                    specialIndex = j;
+                }
+                else if (j + 1 == (int)swap1.x || j + 1 == (int)swap2.x) {
+                    specialIndex = j + 1;
+                }
+                else if (j + 2 == (int)swap1.x || j + 2 == (int)swap2.x) {
+                    specialIndex = j + 2;
+                }
+                else if (j + 3 == (int)swap1.x || j + 3 == (int)swap2.x) {
+                    specialIndex = j + 3;
+                }
+
+                // EÄŸer oynanan hamle bulunamazsa ortadaki ÅŸekeri seÃ§
+                if (specialIndex == -1) {
+                    specialIndex = j + 1;
+                }
+
+                for (int k = 0; k < 4; k++) {
+                    int col = j + k;
+                    if (col == specialIndex) {
+                        resources.gameBoard[i][col].baseType = t;
+                        resources.gameBoard[i][col].specialType = 1; // Yatay Ã§izgili
+                    }
+                    else {
+                        resources.gameBoard[i][col].baseType = -1;
+                        resources.gameBoard[i][col].specialType = 0;
+                        explodeAnims[i][col].active = true;
+                        explodeAnims[i][col].timer = 0.0f;
+                    }
+                }
+                found = true;
+            }
+        }
+    }
+    // DÄ°KEY
+    for (int j = 0; j < gridSize; j++) {
+        for (int i = 0; i < gridSize - 3; i++) {
+            int t = resources.gameBoard[i][j].baseType;
+            if (t >= 0 &&
+                t == resources.gameBoard[i + 1][j].baseType &&
+                t == resources.gameBoard[i + 2][j].baseType &&
+                t == resources.gameBoard[i + 3][j].baseType) {
+
+                // Oynanan hamlenin yapÄ±ldÄ±ÄŸÄ± yeri bul
+                int specialIndex = -1;
+                if (i == (int)swap1.y || i == (int)swap2.y) {
+                    specialIndex = i;
+                }
+                else if (i + 1 == (int)swap1.y || i + 1 == (int)swap2.y) {
+                    specialIndex = i + 1;
+                }
+                else if (i + 2 == (int)swap1.y || i + 2 == (int)swap2.y) {
+                    specialIndex = i + 2;
+                }
+                else if (i + 3 == (int)swap1.y || i + 3 == (int)swap2.y) {
+                    specialIndex = i + 3;
+                }
+
+                // EÄŸer oynanan hamle bulunamazsa ortadaki ÅŸekeri seÃ§
+                if (specialIndex == -1) {
+                    specialIndex = i + 1;
+                }
+
+                for (int k = 0; k < 4; k++) {
+                    int row = i + k;
+                    if (row == specialIndex) {
+                        resources.gameBoard[row][j].baseType = t;
+                        resources.gameBoard[row][j].specialType = 2; // Dikey Ã§izgili
+                    }
+                    else {
+                        resources.gameBoard[row][j].baseType = -1;
+                        resources.gameBoard[row][j].specialType = 0;
+                        explodeAnims[row][j].active = true;
+                        explodeAnims[row][j].timer = 0.0f;
+                    }
+                }
+                found = true;
+            }
+        }
+    }
+    return found;
 }
