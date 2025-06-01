@@ -1,0 +1,52 @@
+﻿  board.c
+C:\Users\laptop1\source\repos\raylib,\board.c(27,65): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(28,66): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(58,39): warning C4013: 'rand' undefined; assuming extern returning int
+C:\Users\laptop1\source\repos\raylib,\board.c(60,54): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(61,54): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(82,37): warning C4244: 'function': conversion from 'float' to 'int', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(82,44): warning C4244: 'function': conversion from 'float' to 'int', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(108,14): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(109,18): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(114,6): warning C4029: declared formal parameter list different from definition
+C:\Users\laptop1\source\repos\raylib,\board.c(116,24): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(116,30): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(117,24): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(117,30): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(124,39): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(124,56): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(497,79): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(497,95): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(500,77): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(500,99): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(517,67): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(518,73): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(594,9): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(594,21): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(594,32): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(659,55): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(659,66): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(679,41): warning C4305: 'function': truncation from 'double' to 'float'
+C:\Users\laptop1\source\repos\raylib,\board.c(683,75): warning C4244: 'function': conversion from 'float' to 'int', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(683,92): warning C4244: 'function': conversion from 'float' to 'int', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(687,35): warning C4244: 'function': conversion from 'float' to 'int', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(687,46): warning C4244: 'function': conversion from 'float' to 'int', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(687,57): warning C4244: 'function': conversion from 'float' to 'int', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(687,72): warning C4244: 'function': conversion from 'float' to 'int', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(688,36): warning C4244: 'function': conversion from 'float' to 'int', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(688,52): warning C4244: 'function': conversion from 'float' to 'int', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(636,52): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(657,32): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(657,43): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(657,54): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(657,68): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(677,33): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(677,41): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(677,49): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(677,57): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(681,39): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(681,53): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(685,47): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\laptop1\source\repos\raylib,\board.c(685,70): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library
+  raylib,.vcxproj -> C:\Users\laptop1\source\repos\raylib,\x64\Debug\raylib.exe
