@@ -65,12 +65,34 @@ void initgameBoard() {
     removeMatches();
 }
 
-// Şekerleri çizme
 void drawCandies() {
     for (int i = 0; i < gridSize; i++) {
         for (int j = 0; j < gridSize; j++) {
+            Vector2 pos = { gridOffset.x + j * cellSize, gridOffset.y + i * cellSize };
             int type = resources.gameBoard[i][j].baseType;
             int special = resources.gameBoard[i][j].specialType;
+
+            // Patlama animasyonu aktifse (baseType -1 olsa bile çiz!)
+            if (explodeAnims[i][j].active) {
+                // Şekeri önce çiz (varsa)
+                if (type >= 0) {
+                    Texture2D tex;
+                    if (special == 1)      tex = resources.stripedHTextures[type];
+                    else if (special == 2) tex = resources.stripedVTextures[type];
+                    else if (special == 3) tex = resources.wrappedTextures[type];
+                    else if (special == 4) tex = resources.colorBomb;
+                    else                   tex = resources.normalTextures[type];
+                    DrawTexture(tex, pos.x, pos.y, WHITE);
+                }
+                // Patlama animasyonu
+                int frame = explodeAnims[i][j].currentFrame;
+                if (frame >= frameCount) frame = frameCount - 1;
+                Rectangle src = { frame * cellSize, 0, cellSize, cellSize };
+                DrawTextureRec(resources.explodeTexture, src, pos, WHITE);
+                continue;
+            }
+
+            // Patlama yoksa ve baseType >= 0 ise normal şekeri çiz
             if (type >= 0) {
                 Texture2D tex;
                 if (special == 1)      tex = resources.stripedHTextures[type];
@@ -78,7 +100,6 @@ void drawCandies() {
                 else if (special == 3) tex = resources.wrappedTextures[type];
                 else if (special == 4) tex = resources.colorBomb;
                 else                   tex = resources.normalTextures[type];
-                Vector2 pos = { gridOffset.x + j * cellSize, gridOffset.y + i * cellSize };
                 DrawTexture(tex, pos.x, pos.y, WHITE);
             }
         }
@@ -190,7 +211,6 @@ bool isValidSwap(int row1, int col1, int row2, int col2) {
             addScore(25 * 20); // 5x5 alan için ekstra puan
             return true;
         }
-        // İki renk bombası
         else if (s1 == 4 && s2 == 4) {
             // Tüm tahtayı patlat
             for (int i = 0; i < gridSize; i++) {
@@ -203,9 +223,10 @@ bool isValidSwap(int row1, int col1, int row2, int col2) {
                     }
                 }
             }
-            addScore(gridSize * gridSize * 20); // Tüm tahta için ekstra puan
+            addScore(gridSize * gridSize); // SADECE BU!
             return true;
         }
+        
     }
 
     if (s1 == 0 && s2 == 0 && t1 == t2)
@@ -249,13 +270,21 @@ void triggerSpecialCandy(int row, int col, int specialType, int baseType) {
     }
 }
 
-// Patlama animasyonunu güncelleme
 void updateExplodeAnimation(float delta) {
     for (int i = 0; i < gridSize; i++) {
         for (int j = 0; j < gridSize; j++) {
             if (explodeAnims[i][j].active) {
                 explodeAnims[i][j].timer += delta;
-                if (explodeAnims[i][j].timer >= explodeDuration) {
+
+                float frameDuration = explodeDuration / frameCount;
+                int newFrame = (int)(explodeAnims[i][j].timer / frameDuration);
+
+                if (newFrame != explodeAnims[i][j].currentFrame) {
+                    explodeAnims[i][j].currentFrame = newFrame;
+                }
+
+                if (explodeAnims[i][j].timer >= explodeDuration ||
+                    explodeAnims[i][j].currentFrame >= frameCount) {
                     explodeAnims[i][j].active = false;
                 }
             }
@@ -263,95 +292,81 @@ void updateExplodeAnimation(float delta) {
     }
 }
 
-// Özel şeker eşleşmelerini kontrol etme
 bool checkSpecialCandyMatches() {
     bool found = false;
-   
     for (int i = 0; i < gridSize; i++) {
         for (int j = 0; j < gridSize - 2; j++) {
             int t = resources.gameBoard[i][j].baseType;
             if (t < 0) continue;
-
             int s0 = resources.gameBoard[i][j].specialType;
             int s1 = resources.gameBoard[i][j + 1].specialType;
             int s2 = resources.gameBoard[i][j + 2].specialType;
-
             if (t == resources.gameBoard[i][j + 1].baseType &&
                 t == resources.gameBoard[i][j + 2].baseType) {
-
-                
                 if (s0 == 1) { triggerFourStripedHorizontal(i, j); found = true; }
                 if (s1 == 1) { triggerFourStripedHorizontal(i, j + 1); found = true; }
                 if (s2 == 1) { triggerFourStripedHorizontal(i, j + 2); found = true; }
                 if (s0 == 2) { triggerFourStripedVertical(i, j); found = true; }
                 if (s1 == 2) { triggerFourStripedVertical(i, j + 1); found = true; }
                 if (s2 == 2) { triggerFourStripedVertical(i, j + 2); found = true; }
-
-               
                 if (s0 == 3) { triggerWrappedPackage(i, j); found = true; }
                 if (s1 == 3) { triggerWrappedPackage(i, j + 1); found = true; }
                 if (s2 == 3) { triggerWrappedPackage(i, j + 2); found = true; }
-
-              
                 if (s0 == 0) {
                     resources.gameBoard[i][j].baseType = -1;
                     resources.gameBoard[i][j].specialType = 0;
+                    startExplodeAnim(i, j);
                     addScore(1);
                 }
                 if (s1 == 0) {
                     resources.gameBoard[i][j + 1].baseType = -1;
                     resources.gameBoard[i][j + 1].specialType = 0;
+                    startExplodeAnim(i, j + 1);
                     addScore(1);
                 }
                 if (s2 == 0) {
                     resources.gameBoard[i][j + 2].baseType = -1;
                     resources.gameBoard[i][j + 2].specialType = 0;
+                    startExplodeAnim(i, j + 2);
                     addScore(1);
                 }
             }
         }
     }
-
-    // DİKEY
     for (int j = 0; j < gridSize; j++) {
         for (int i = 0; i < gridSize - 2; i++) {
             int t = resources.gameBoard[i][j].baseType;
             if (t < 0) continue;
-
             int s0 = resources.gameBoard[i][j].specialType;
             int s1 = resources.gameBoard[i + 1][j].specialType;
             int s2 = resources.gameBoard[i + 2][j].specialType;
-
             if (t == resources.gameBoard[i + 1][j].baseType &&
                 t == resources.gameBoard[i + 2][j].baseType) {
-
-                // Önce çizgili şekerleri kontrol et
                 if (s0 == 1) { triggerFourStripedHorizontal(i, j); found = true; }
                 if (s1 == 1) { triggerFourStripedHorizontal(i + 1, j); found = true; }
                 if (s2 == 1) { triggerFourStripedHorizontal(i + 2, j); found = true; }
                 if (s0 == 2) { triggerFourStripedVertical(i, j); found = true; }
                 if (s1 == 2) { triggerFourStripedVertical(i + 1, j); found = true; }
                 if (s2 == 2) { triggerFourStripedVertical(i + 2, j); found = true; }
-
-                // Sonra paket şekerleri kontrol et
                 if (s0 == 3) { triggerWrappedPackage(i, j); found = true; }
                 if (s1 == 3) { triggerWrappedPackage(i + 1, j); found = true; }
                 if (s2 == 3) { triggerWrappedPackage(i + 2, j); found = true; }
-
-                // Normal şekerleri sil
                 if (s0 == 0) {
                     resources.gameBoard[i][j].baseType = -1;
                     resources.gameBoard[i][j].specialType = 0;
+                    startExplodeAnim(i, j);
                     addScore(1);
                 }
                 if (s1 == 0) {
                     resources.gameBoard[i + 1][j].baseType = -1;
                     resources.gameBoard[i + 1][j].specialType = 0;
+                    startExplodeAnim(i + 1, j);
                     addScore(1);
                 }
                 if (s2 == 0) {
                     resources.gameBoard[i + 2][j].baseType = -1;
                     resources.gameBoard[i + 2][j].specialType = 0;
+                    startExplodeAnim(i + 2, j);
                     addScore(1);
                 }
             }
@@ -373,7 +388,6 @@ void removeMatches() {
     } while (found);
 }
 
-// Yatay çizgili şeker tetikleme
 void triggerFourStripedHorizontal(int row, int col) {
     int count = 0;
     for (int j = 0; j < gridSize; j++) {
@@ -381,15 +395,13 @@ void triggerFourStripedHorizontal(int row, int col) {
             count++;
             resources.gameBoard[row][j].baseType = -1;
             resources.gameBoard[row][j].specialType = 0;
-            explodeAnims[row][j].active = true;
-            explodeAnims[row][j].timer = 0.0f;
+            startExplodeAnim(row, j); 
         }
     }
     addScore(count);
-    removeMatches(); // Zincirleme reaksiyon için
+    removeMatches(); 
 }
 
-// Dikey çizgili şeker tetikleme
 void triggerFourStripedVertical(int row, int col) {
     int count = 0;
     for (int i = 0; i < gridSize; i++) {
@@ -397,8 +409,7 @@ void triggerFourStripedVertical(int row, int col) {
             count++;
             resources.gameBoard[i][col].baseType = -1;
             resources.gameBoard[i][col].specialType = 0;
-            explodeAnims[i][col].active = true;
-            explodeAnims[i][col].timer = 0.0f;
+            startExplodeAnim(i, col);
         }
     }
     addScore(count);
@@ -407,9 +418,8 @@ void triggerFourStripedVertical(int row, int col) {
 
 void triggerWrappedPackage(int row, int col) {
     int count = 0;
-    // 3x3 alanı önce özel şekerleri tespit et
-    int specials[3][3] = { 0 }; // Özel şeker tiplerini tutar
-    int bases[3][3] = { 0 };    // BaseType'ları tutar
+    int specials[3][3] = { 0 };
+    int bases[3][3] = { 0 };
     for (int di = -1; di <= 1; di++) {
         for (int dj = -1; dj <= 1; dj++) {
             int i = row + di, j = col + dj;
@@ -423,14 +433,12 @@ void triggerWrappedPackage(int row, int col) {
             }
         }
     }
-    // Önce özel şekerleri tetikle
     for (int di = -1; di <= 1; di++) {
         for (int dj = -1; dj <= 1; dj++) {
             int i = row + di, j = col + dj;
             int special = specials[di + 1][dj + 1];
             int base = bases[di + 1][dj + 1];
             if (i >= 0 && i < gridSize && j >= 0 && j < gridSize && special > 0) {
-                // Kendi kendini tekrar patlatmasını önlemek için önce specialType'ı sıfırla
                 resources.gameBoard[i][j].specialType = 0;
                 switch (special) {
                 case 1: triggerFourStripedHorizontal(i, j); break;
@@ -441,7 +449,6 @@ void triggerWrappedPackage(int row, int col) {
             }
         }
     }
-    // Sonra 3x3 alanı temizle
     for (int di = -1; di <= 1; di++) {
         for (int dj = -1; dj <= 1; dj++) {
             int i = row + di, j = col + dj;
@@ -450,8 +457,7 @@ void triggerWrappedPackage(int row, int col) {
                     count++;
                     resources.gameBoard[i][j].baseType = -1;
                     resources.gameBoard[i][j].specialType = 0;
-                    explodeAnims[i][j].active = true;
-                    explodeAnims[i][j].timer = 0.0f;
+                    startExplodeAnim(i, j);
                 }
             }
         }
@@ -460,7 +466,6 @@ void triggerWrappedPackage(int row, int col) {
     removeMatches();
 }
 
-// Renk bombası tetikleme
 void triggerFiveColorBomb(int row, int col, int targetBaseType) {
     int count = 0;
     for (int i = 0; i < gridSize; i++) {
@@ -469,8 +474,7 @@ void triggerFiveColorBomb(int row, int col, int targetBaseType) {
                 count++;
                 resources.gameBoard[i][j].baseType = -1;
                 resources.gameBoard[i][j].specialType = 0;
-                explodeAnims[i][j].active = true;
-                explodeAnims[i][j].timer = 0.0f;
+                startExplodeAnim(i, j);
             }
         }
     }
@@ -478,11 +482,10 @@ void triggerFiveColorBomb(int row, int col, int targetBaseType) {
         count++;
         resources.gameBoard[row][col].baseType = -1;
         resources.gameBoard[row][col].specialType = 0;
-        explodeAnims[row][col].active = true;
-        explodeAnims[row][col].timer = 0.0f;
+        startExplodeAnim(row, col);
     }
     addScore(count);
-    removeMatches(); // Zincirleme reaksiyon için
+    removeMatches();
 }
 
 // Swap animasyonunu güncelleme
@@ -629,7 +632,7 @@ void drawgameScreen() {
 
     static bool candiesDropping = false;
     bool anyAnimations = false;
-    if (swapAnim.active || isSwapping) anyAnimations = true;
+    if (swapAnim.active || isSwapping || isAnimActive()) anyAnimations = true;
     for (int i = 0; i < gridSize && !anyAnimations; i++) {
         for (int j = 0; j < gridSize; j++) {
             if (explodeAnims[i][j].active) {
@@ -778,7 +781,19 @@ void drawgameScreen() {
         }
     }
 }
-
+void startExplodeAnim(int i, int j) {
+    explodeAnims[i][j].active = true;
+    explodeAnims[i][j].timer = 0.0f;
+    explodeAnims[i][j].currentFrame = 0;
+}
+bool isAnimActive() {
+    for (int i = 0; i < gridSize; i++) {
+        for (int j = 0; j < gridSize; j++) {
+            if (explodeAnims[i][j].active) return true;
+        }
+    }
+    return false;
+}
 bool checkAndTriggerSpecialCandiesInMatch(int startRow, int startCol, int endRow, int endCol) {
     bool triggered = false;
     for (int i = startRow; i <= endRow; i++) {
@@ -920,6 +935,7 @@ bool checkFiveMatchAndMakeColorBomb() {
     return found;
 }
 
+
 bool checkWrappedMatchAndMakePackage() {
     bool found = false;
     for (int i = 0; i < gridSize; i++) {
@@ -927,81 +943,34 @@ bool checkWrappedMatchAndMakePackage() {
             int t = resources.gameBoard[i][j].baseType;
             if (t < 0) continue;
 
-            // T şekli kontrolü
-            if (i >= 1 && i < gridSize - 1 && j >= 1 && j < gridSize - 1 &&
-                t == resources.gameBoard[i][j - 1].baseType &&
-                t == resources.gameBoard[i][j + 1].baseType &&
-                t == resources.gameBoard[i - 1][j].baseType &&
-                t == resources.gameBoard[i + 1][j].baseType) {
-
-                // Önce eşleşen şekerler içinde özel şeker var mı kontrol et
-                bool hasSpecial = false;
-                for (int k = -1; k <= 1; k++) {
-                    for (int l = -1; l <= 1; l++) {
-                        if (k == 0 && l == 0) continue;
-                        if (resources.gameBoard[i + k][j + l].specialType > 0) {
-                            hasSpecial = true;
-                            triggerSpecialCandy(i + k, j + l, resources.gameBoard[i + k][j + l].specialType, t);
-                        }
-                    }
-                }
-
-                // Eğer özel şeker yoksa veya patlatıldıysa paket şeker oluştur
-                resources.gameBoard[i][j - 1].baseType = -1;
-                resources.gameBoard[i][j + 1].baseType = -1;
-                resources.gameBoard[i - 1][j].baseType = -1;
-                resources.gameBoard[i + 1][j].baseType = -1;
-                resources.gameBoard[i][j - 1].specialType = 0;
-                resources.gameBoard[i][j + 1].specialType = 0;
-                resources.gameBoard[i - 1][j].specialType = 0;
-                resources.gameBoard[i + 1][j].specialType = 0;
-                resources.gameBoard[i][j].baseType = t;
-                resources.gameBoard[i][j].specialType = 3; // Paket şeker
-                found = true;
-            }
-
-            // L şekli kontrolü (sol üst köşe)
             else if (i < gridSize - 2 && j < gridSize - 2 &&
                 t == resources.gameBoard[i + 1][j].baseType &&
                 t == resources.gameBoard[i + 2][j].baseType &&
                 t == resources.gameBoard[i][j + 1].baseType &&
                 t == resources.gameBoard[i][j + 2].baseType) {
 
-                // Önce eşleşen şekerler içinde özel şeker var mı kontrol et
-                bool hasSpecial = false;
-                if (resources.gameBoard[i + 1][j].specialType > 0) {
-                    hasSpecial = true;
-                    triggerSpecialCandy(i + 1, j, resources.gameBoard[i + 1][j].specialType, t);
-                }
-                if (resources.gameBoard[i + 2][j].specialType > 0) {
-                    hasSpecial = true;
-                    triggerSpecialCandy(i + 2, j, resources.gameBoard[i + 2][j].specialType, t);
-                }
-                if (resources.gameBoard[i][j + 1].specialType > 0) {
-                    hasSpecial = true;
-                    triggerSpecialCandy(i, j + 1, resources.gameBoard[i][j + 1].specialType, t);
-                }
-                if (resources.gameBoard[i][j + 2].specialType > 0) {
-                    hasSpecial = true;
-                    triggerSpecialCandy(i, j + 2, resources.gameBoard[i][j + 2].specialType, t);
-                }
-
-                // Eğer özel şeker yoksa veya patlatıldıysa paket şeker oluştur
                 resources.gameBoard[i + 1][j].baseType = -1;
-                resources.gameBoard[i + 2][j].baseType = -1;
-                resources.gameBoard[i][j + 1].baseType = -1;
-                resources.gameBoard[i][j + 2].baseType = -1;
                 resources.gameBoard[i + 1][j].specialType = 0;
+                startExplodeAnim(i + 1, j);
+
+                resources.gameBoard[i + 2][j].baseType = -1;
                 resources.gameBoard[i + 2][j].specialType = 0;
+                startExplodeAnim(i + 2, j);
+
+                resources.gameBoard[i][j + 1].baseType = -1;
                 resources.gameBoard[i][j + 1].specialType = 0;
+                startExplodeAnim(i, j + 1);
+
+                resources.gameBoard[i][j + 2].baseType = -1;
                 resources.gameBoard[i][j + 2].specialType = 0;
+                startExplodeAnim(i, j + 2);
+
                 resources.gameBoard[i][j].baseType = t;
-                resources.gameBoard[i][j].specialType = 3; // Paket şeker
+                resources.gameBoard[i][j].specialType = 3;
                 found = true;
             }
 
-            // Diğer L şekli varyasyonları için de aynı mantık uygulanacak
-            // L şekli (sağ üst köşe)
+            // --- L ŞEKLİ, Sağ Üst ---
             else if (i < gridSize - 2 && j >= 2 &&
                 t == resources.gameBoard[i + 1][j].baseType &&
                 t == resources.gameBoard[i + 2][j].baseType &&
@@ -1009,18 +978,27 @@ bool checkWrappedMatchAndMakePackage() {
                 t == resources.gameBoard[i][j - 2].baseType) {
 
                 resources.gameBoard[i + 1][j].baseType = -1;
-                resources.gameBoard[i + 2][j].baseType = -1;
-                resources.gameBoard[i][j - 1].baseType = -1;
-                resources.gameBoard[i][j - 2].baseType = -1;
                 resources.gameBoard[i + 1][j].specialType = 0;
+                startExplodeAnim(i + 1, j);
+
+                resources.gameBoard[i + 2][j].baseType = -1;
                 resources.gameBoard[i + 2][j].specialType = 0;
+                startExplodeAnim(i + 2, j);
+
+                resources.gameBoard[i][j - 1].baseType = -1;
                 resources.gameBoard[i][j - 1].specialType = 0;
+                startExplodeAnim(i, j - 1);
+
+                resources.gameBoard[i][j - 2].baseType = -1;
                 resources.gameBoard[i][j - 2].specialType = 0;
+                startExplodeAnim(i, j - 2);
+
                 resources.gameBoard[i][j].baseType = t;
-                resources.gameBoard[i][j].specialType = 3; // Paket şeker
+                resources.gameBoard[i][j].specialType = 3;
                 found = true;
             }
-            // L şekli (sol alt köşe)
+
+            // --- L ŞEKLİ, Sol Alt ---
             else if (i >= 2 && j < gridSize - 2 &&
                 t == resources.gameBoard[i - 1][j].baseType &&
                 t == resources.gameBoard[i - 2][j].baseType &&
@@ -1028,18 +1006,27 @@ bool checkWrappedMatchAndMakePackage() {
                 t == resources.gameBoard[i][j + 2].baseType) {
 
                 resources.gameBoard[i - 1][j].baseType = -1;
-                resources.gameBoard[i - 2][j].baseType = -1;
-                resources.gameBoard[i][j + 1].baseType = -1;
-                resources.gameBoard[i][j + 2].baseType = -1;
                 resources.gameBoard[i - 1][j].specialType = 0;
+                startExplodeAnim(i - 1, j);
+
+                resources.gameBoard[i - 2][j].baseType = -1;
                 resources.gameBoard[i - 2][j].specialType = 0;
+                startExplodeAnim(i - 2, j);
+
+                resources.gameBoard[i][j + 1].baseType = -1;
                 resources.gameBoard[i][j + 1].specialType = 0;
+                startExplodeAnim(i, j + 1);
+
+                resources.gameBoard[i][j + 2].baseType = -1;
                 resources.gameBoard[i][j + 2].specialType = 0;
+                startExplodeAnim(i, j + 2);
+
                 resources.gameBoard[i][j].baseType = t;
-                resources.gameBoard[i][j].specialType = 3; // Paket şeker
+                resources.gameBoard[i][j].specialType = 3;
                 found = true;
             }
-            // L şekli (sağ alt köşe)
+
+            // --- L ŞEKLİ, Sağ Alt ---
             else if (i >= 2 && j >= 2 &&
                 t == resources.gameBoard[i - 1][j].baseType &&
                 t == resources.gameBoard[i - 2][j].baseType &&
@@ -1047,22 +1034,29 @@ bool checkWrappedMatchAndMakePackage() {
                 t == resources.gameBoard[i][j - 2].baseType) {
 
                 resources.gameBoard[i - 1][j].baseType = -1;
-                resources.gameBoard[i - 2][j].baseType = -1;
-                resources.gameBoard[i][j - 1].baseType = -1;
-                resources.gameBoard[i][j - 2].baseType = -1;
                 resources.gameBoard[i - 1][j].specialType = 0;
+                startExplodeAnim(i - 1, j);
+
+                resources.gameBoard[i - 2][j].baseType = -1;
                 resources.gameBoard[i - 2][j].specialType = 0;
+                startExplodeAnim(i - 2, j);
+
+                resources.gameBoard[i][j - 1].baseType = -1;
                 resources.gameBoard[i][j - 1].specialType = 0;
+                startExplodeAnim(i, j - 1);
+
+                resources.gameBoard[i][j - 2].baseType = -1;
                 resources.gameBoard[i][j - 2].specialType = 0;
+                startExplodeAnim(i, j - 2);
+
                 resources.gameBoard[i][j].baseType = t;
-                resources.gameBoard[i][j].specialType = 3; // Paket şeker
+                resources.gameBoard[i][j].specialType = 3;
                 found = true;
             }
         }
     }
     return found;
 }
-
 bool checkFourMatchAndMakeStriped() {
     bool found = false;
     // YATAY
