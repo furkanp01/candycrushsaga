@@ -163,7 +163,51 @@ bool isValidSwap(int row1, int col1, int row2, int col2) {
     int t1 = resources.gameBoard[row1][col1].baseType;
     int t2 = resources.gameBoard[row2][col2].baseType;
 
-    
+    // İki özel şeker kombinasyonları
+    if (s1 > 0 && s2 > 0) {
+        // İki çizgili şeker (1 ve 2)
+        if ((s1 == 1 || s1 == 2) && (s2 == 1 || s2 == 2)) {
+            triggerFourStripedHorizontal(row1, col1);
+            triggerFourStripedVertical(row1, col1);
+            triggerFourStripedHorizontal(row2, col2);
+            triggerFourStripedVertical(row2, col2);
+            addScore(gridSize * 4); // Ekstra puan
+            return true;
+        }
+        // İki paket şeker
+        else if (s1 == 3 && s2 == 3) {
+            // 5x5 alanı patlat
+            for (int i = row1 - 2; i <= row1 + 2; i++) {
+                for (int j = col1 - 2; j <= col1 + 2; j++) {
+                    if (i >= 0 && i < gridSize && j >= 0 && j < gridSize) {
+                        resources.gameBoard[i][j].baseType = -1;
+                        resources.gameBoard[i][j].specialType = 0;
+                        explodeAnims[i][j].active = true;
+                        explodeAnims[i][j].timer = 0.0f;
+                    }
+                }
+            }
+            addScore(25 * 20); // 5x5 alan için ekstra puan
+            return true;
+        }
+        // İki renk bombası
+        else if (s1 == 4 && s2 == 4) {
+            // Tüm tahtayı patlat
+            for (int i = 0; i < gridSize; i++) {
+                for (int j = 0; j < gridSize; j++) {
+                    if (resources.gameBoard[i][j].baseType != -1) {
+                        resources.gameBoard[i][j].baseType = -1;
+                        resources.gameBoard[i][j].specialType = 0;
+                        explodeAnims[i][j].active = true;
+                        explodeAnims[i][j].timer = 0.0f;
+                    }
+                }
+            }
+            addScore(gridSize * gridSize * 20); // Tüm tahta için ekstra puan
+            return true;
+        }
+    }
+
     if (s1 == 0 && s2 == 0 && t1 == t2)
         return false;
 
@@ -185,6 +229,24 @@ bool isValidSwap(int row1, int col1, int row2, int col2) {
     resources.gameBoard[row2][col2] = temp;
 
     return hasMatch;
+}
+
+// Özel şeker tetikleme yardımcı fonksiyonu
+void triggerSpecialCandy(int row, int col, int specialType, int baseType) {
+    switch (specialType) {
+    case 1: // Yatay çizgili
+        triggerFourStripedHorizontal(row, col);
+        break;
+    case 2: // Dikey çizgili
+        triggerFourStripedVertical(row, col);
+        break;
+    case 3: // Paket
+        triggerWrappedPackage(row, col);
+        break;
+    case 4: // Renk bombası
+        triggerFiveColorBomb(row, col, baseType);
+        break;
+    }
 }
 
 // Patlama animasyonunu güncelleme
@@ -343,11 +405,46 @@ void triggerFourStripedVertical(int row, int col) {
     removeMatches(); // Zincirleme reaksiyon için
 }
 
-// Paket şeker tetikleme
 void triggerWrappedPackage(int row, int col) {
     int count = 0;
-    for (int i = row - 1; i <= row + 1; i++) {
-        for (int j = col - 1; j <= col + 1; j++) {
+    // 3x3 alanı önce özel şekerleri tespit et
+    int specials[3][3] = { 0 }; // Özel şeker tiplerini tutar
+    int bases[3][3] = { 0 };    // BaseType'ları tutar
+    for (int di = -1; di <= 1; di++) {
+        for (int dj = -1; dj <= 1; dj++) {
+            int i = row + di, j = col + dj;
+            if (i >= 0 && i < gridSize && j >= 0 && j < gridSize) {
+                specials[di + 1][dj + 1] = resources.gameBoard[i][j].specialType;
+                bases[di + 1][dj + 1] = resources.gameBoard[i][j].baseType;
+            }
+            else {
+                specials[di + 1][dj + 1] = 0;
+                bases[di + 1][dj + 1] = -1;
+            }
+        }
+    }
+    // Önce özel şekerleri tetikle
+    for (int di = -1; di <= 1; di++) {
+        for (int dj = -1; dj <= 1; dj++) {
+            int i = row + di, j = col + dj;
+            int special = specials[di + 1][dj + 1];
+            int base = bases[di + 1][dj + 1];
+            if (i >= 0 && i < gridSize && j >= 0 && j < gridSize && special > 0) {
+                // Kendi kendini tekrar patlatmasını önlemek için önce specialType'ı sıfırla
+                resources.gameBoard[i][j].specialType = 0;
+                switch (special) {
+                case 1: triggerFourStripedHorizontal(i, j); break;
+                case 2: triggerFourStripedVertical(i, j); break;
+                case 3: triggerWrappedPackage(i, j); break;
+                case 4: triggerFiveColorBomb(i, j, base); break;
+                }
+            }
+        }
+    }
+    // Sonra 3x3 alanı temizle
+    for (int di = -1; di <= 1; di++) {
+        for (int dj = -1; dj <= 1; dj++) {
+            int i = row + di, j = col + dj;
             if (i >= 0 && i < gridSize && j >= 0 && j < gridSize) {
                 if (resources.gameBoard[i][j].baseType != -1) {
                     count++;
@@ -360,7 +457,7 @@ void triggerWrappedPackage(int row, int col) {
         }
     }
     addScore(count);
-    removeMatches(); // Zincirleme reaksiyon için
+    removeMatches();
 }
 
 // Renk bombası tetikleme
@@ -682,7 +779,36 @@ void drawgameScreen() {
     }
 }
 
-// 5'li eşleşme ve renk bombası oluşturma
+bool checkAndTriggerSpecialCandiesInMatch(int startRow, int startCol, int endRow, int endCol) {
+    bool triggered = false;
+    for (int i = startRow; i <= endRow; i++) {
+        for (int j = startCol; j <= endCol; j++) {
+            int special = resources.gameBoard[i][j].specialType;
+            if (special > 0) {
+                switch (special) {
+                case 1: // Yatay çizgili
+                    triggerFourStripedHorizontal(i, j);
+                    triggered = true;
+                    break;
+                case 2: // Dikey çizgili
+                    triggerFourStripedVertical(i, j);
+                    triggered = true;
+                    break;
+                case 3: // Paket
+                    triggerWrappedPackage(i, j);
+                    triggered = true;
+                    break;
+                case 4: // Renk bombası
+                    triggerFiveColorBomb(i, j, resources.gameBoard[i][j].baseType);
+                    triggered = true;
+                    break;
+                }
+            }
+        }
+    }
+    return triggered;
+}
+
 bool checkFiveMatchAndMakeColorBomb() {
     bool found = false;
     // YATAY
@@ -694,6 +820,37 @@ bool checkFiveMatchAndMakeColorBomb() {
                 t == resources.gameBoard[i][j + 2].baseType &&
                 t == resources.gameBoard[i][j + 3].baseType &&
                 t == resources.gameBoard[i][j + 4].baseType) {
+
+                // Önce eşleşen şekerler içinde özel şeker var mı kontrol et
+                bool hasSpecial = false;
+                int specialRow = -1, specialCol = -1;
+                for (int k = 0; k < 5; k++) {
+                    if (resources.gameBoard[i][j + k].specialType > 0) {
+                        hasSpecial = true;
+                        specialRow = i;
+                        specialCol = j + k;
+                        break;
+                    }
+                }
+
+                // Eğer özel şeker varsa önce onu patlat
+                if (hasSpecial) {
+                    switch (resources.gameBoard[specialRow][specialCol].specialType) {
+                    case 1: // Yatay çizgili
+                        triggerFourStripedHorizontal(specialRow, specialCol);
+                        break;
+                    case 2: // Dikey çizgili
+                        triggerFourStripedVertical(specialRow, specialCol);
+                        break;
+                    case 3: // Paket
+                        triggerWrappedPackage(specialRow, specialCol);
+                        break;
+                    case 4: // Renk bombası
+                        triggerFiveColorBomb(specialRow, specialCol, t);
+                        break;
+                    }
+                }
+
                 int center = j + 2;
                 for (int k = 0; k < 5; k++) {
                     resources.gameBoard[i][j + k].baseType = -1;
@@ -716,6 +873,37 @@ bool checkFiveMatchAndMakeColorBomb() {
                 t == resources.gameBoard[i + 2][j].baseType &&
                 t == resources.gameBoard[i + 3][j].baseType &&
                 t == resources.gameBoard[i + 4][j].baseType) {
+
+                // Önce eşleşen şekerler içinde özel şeker var mı kontrol et
+                bool hasSpecial = false;
+                int specialRow = -1, specialCol = -1;
+                for (int k = 0; k < 5; k++) {
+                    if (resources.gameBoard[i + k][j].specialType > 0) {
+                        hasSpecial = true;
+                        specialRow = i + k;
+                        specialCol = j;
+                        break;
+                    }
+                }
+
+                // Eğer özel şeker varsa önce onu patlat
+                if (hasSpecial) {
+                    switch (resources.gameBoard[specialRow][specialCol].specialType) {
+                    case 1: // Yatay çizgili
+                        triggerFourStripedHorizontal(specialRow, specialCol);
+                        break;
+                    case 2: // Dikey çizgili
+                        triggerFourStripedVertical(specialRow, specialCol);
+                        break;
+                    case 3: // Paket
+                        triggerWrappedPackage(specialRow, specialCol);
+                        break;
+                    case 4: // Renk bombası
+                        triggerFiveColorBomb(specialRow, specialCol, t);
+                        break;
+                    }
+                }
+
                 int center = i + 2;
                 for (int k = 0; k < 5; k++) {
                     resources.gameBoard[i + k][j].baseType = -1;
@@ -732,19 +920,33 @@ bool checkFiveMatchAndMakeColorBomb() {
     return found;
 }
 
-// Paket şeker oluşturma
 bool checkWrappedMatchAndMakePackage() {
     bool found = false;
     for (int i = 0; i < gridSize; i++) {
         for (int j = 0; j < gridSize; j++) {
             int t = resources.gameBoard[i][j].baseType;
             if (t < 0) continue;
-            // T şekli (merkez)
+
+            // T şekli kontrolü
             if (i >= 1 && i < gridSize - 1 && j >= 1 && j < gridSize - 1 &&
                 t == resources.gameBoard[i][j - 1].baseType &&
                 t == resources.gameBoard[i][j + 1].baseType &&
                 t == resources.gameBoard[i - 1][j].baseType &&
                 t == resources.gameBoard[i + 1][j].baseType) {
+
+                // Önce eşleşen şekerler içinde özel şeker var mı kontrol et
+                bool hasSpecial = false;
+                for (int k = -1; k <= 1; k++) {
+                    for (int l = -1; l <= 1; l++) {
+                        if (k == 0 && l == 0) continue;
+                        if (resources.gameBoard[i + k][j + l].specialType > 0) {
+                            hasSpecial = true;
+                            triggerSpecialCandy(i + k, j + l, resources.gameBoard[i + k][j + l].specialType, t);
+                        }
+                    }
+                }
+
+                // Eğer özel şeker yoksa veya patlatıldıysa paket şeker oluştur
                 resources.gameBoard[i][j - 1].baseType = -1;
                 resources.gameBoard[i][j + 1].baseType = -1;
                 resources.gameBoard[i - 1][j].baseType = -1;
@@ -753,15 +955,38 @@ bool checkWrappedMatchAndMakePackage() {
                 resources.gameBoard[i][j + 1].specialType = 0;
                 resources.gameBoard[i - 1][j].specialType = 0;
                 resources.gameBoard[i + 1][j].specialType = 0;
+                resources.gameBoard[i][j].baseType = t;
                 resources.gameBoard[i][j].specialType = 3; // Paket şeker
                 found = true;
             }
-            // L şekli (sol üst köşe örnek)
+
+            // L şekli kontrolü (sol üst köşe)
             else if (i < gridSize - 2 && j < gridSize - 2 &&
                 t == resources.gameBoard[i + 1][j].baseType &&
                 t == resources.gameBoard[i + 2][j].baseType &&
                 t == resources.gameBoard[i][j + 1].baseType &&
                 t == resources.gameBoard[i][j + 2].baseType) {
+
+                // Önce eşleşen şekerler içinde özel şeker var mı kontrol et
+                bool hasSpecial = false;
+                if (resources.gameBoard[i + 1][j].specialType > 0) {
+                    hasSpecial = true;
+                    triggerSpecialCandy(i + 1, j, resources.gameBoard[i + 1][j].specialType, t);
+                }
+                if (resources.gameBoard[i + 2][j].specialType > 0) {
+                    hasSpecial = true;
+                    triggerSpecialCandy(i + 2, j, resources.gameBoard[i + 2][j].specialType, t);
+                }
+                if (resources.gameBoard[i][j + 1].specialType > 0) {
+                    hasSpecial = true;
+                    triggerSpecialCandy(i, j + 1, resources.gameBoard[i][j + 1].specialType, t);
+                }
+                if (resources.gameBoard[i][j + 2].specialType > 0) {
+                    hasSpecial = true;
+                    triggerSpecialCandy(i, j + 2, resources.gameBoard[i][j + 2].specialType, t);
+                }
+
+                // Eğer özel şeker yoksa veya patlatıldıysa paket şeker oluştur
                 resources.gameBoard[i + 1][j].baseType = -1;
                 resources.gameBoard[i + 2][j].baseType = -1;
                 resources.gameBoard[i][j + 1].baseType = -1;
@@ -770,15 +995,19 @@ bool checkWrappedMatchAndMakePackage() {
                 resources.gameBoard[i + 2][j].specialType = 0;
                 resources.gameBoard[i][j + 1].specialType = 0;
                 resources.gameBoard[i][j + 2].specialType = 0;
+                resources.gameBoard[i][j].baseType = t;
                 resources.gameBoard[i][j].specialType = 3; // Paket şeker
                 found = true;
             }
-            // L şekli (diğer varyasyonlar)
+
+            // Diğer L şekli varyasyonları için de aynı mantık uygulanacak
+            // L şekli (sağ üst köşe)
             else if (i < gridSize - 2 && j >= 2 &&
                 t == resources.gameBoard[i + 1][j].baseType &&
                 t == resources.gameBoard[i + 2][j].baseType &&
                 t == resources.gameBoard[i][j - 1].baseType &&
                 t == resources.gameBoard[i][j - 2].baseType) {
+
                 resources.gameBoard[i + 1][j].baseType = -1;
                 resources.gameBoard[i + 2][j].baseType = -1;
                 resources.gameBoard[i][j - 1].baseType = -1;
@@ -787,14 +1016,17 @@ bool checkWrappedMatchAndMakePackage() {
                 resources.gameBoard[i + 2][j].specialType = 0;
                 resources.gameBoard[i][j - 1].specialType = 0;
                 resources.gameBoard[i][j - 2].specialType = 0;
+                resources.gameBoard[i][j].baseType = t;
                 resources.gameBoard[i][j].specialType = 3; // Paket şeker
                 found = true;
             }
+            // L şekli (sol alt köşe)
             else if (i >= 2 && j < gridSize - 2 &&
                 t == resources.gameBoard[i - 1][j].baseType &&
                 t == resources.gameBoard[i - 2][j].baseType &&
                 t == resources.gameBoard[i][j + 1].baseType &&
                 t == resources.gameBoard[i][j + 2].baseType) {
+
                 resources.gameBoard[i - 1][j].baseType = -1;
                 resources.gameBoard[i - 2][j].baseType = -1;
                 resources.gameBoard[i][j + 1].baseType = -1;
@@ -803,14 +1035,17 @@ bool checkWrappedMatchAndMakePackage() {
                 resources.gameBoard[i - 2][j].specialType = 0;
                 resources.gameBoard[i][j + 1].specialType = 0;
                 resources.gameBoard[i][j + 2].specialType = 0;
-                resources.gameBoard[i][j].specialType = 3;
+                resources.gameBoard[i][j].baseType = t;
+                resources.gameBoard[i][j].specialType = 3; // Paket şeker
                 found = true;
             }
+            // L şekli (sağ alt köşe)
             else if (i >= 2 && j >= 2 &&
                 t == resources.gameBoard[i - 1][j].baseType &&
                 t == resources.gameBoard[i - 2][j].baseType &&
                 t == resources.gameBoard[i][j - 1].baseType &&
                 t == resources.gameBoard[i][j - 2].baseType) {
+
                 resources.gameBoard[i - 1][j].baseType = -1;
                 resources.gameBoard[i - 2][j].baseType = -1;
                 resources.gameBoard[i][j - 1].baseType = -1;
@@ -819,7 +1054,8 @@ bool checkWrappedMatchAndMakePackage() {
                 resources.gameBoard[i - 2][j].specialType = 0;
                 resources.gameBoard[i][j - 1].specialType = 0;
                 resources.gameBoard[i][j - 2].specialType = 0;
-                resources.gameBoard[i][j].specialType = 3;
+                resources.gameBoard[i][j].baseType = t;
+                resources.gameBoard[i][j].specialType = 3; // Paket şeker
                 found = true;
             }
         }
@@ -827,7 +1063,6 @@ bool checkWrappedMatchAndMakePackage() {
     return found;
 }
 
-// 4'lü eşleşme ve çizgili şeker oluşturma
 bool checkFourMatchAndMakeStriped() {
     bool found = false;
     // YATAY
@@ -838,6 +1073,36 @@ bool checkFourMatchAndMakeStriped() {
                 t == resources.gameBoard[i][j + 1].baseType &&
                 t == resources.gameBoard[i][j + 2].baseType &&
                 t == resources.gameBoard[i][j + 3].baseType) {
+
+                // Önce eşleşen şekerler içinde özel şeker var mı kontrol et
+                bool hasSpecial = false;
+                int specialRow = -1, specialCol = -1;
+                for (int k = 0; k < 4; k++) {
+                    if (resources.gameBoard[i][j + k].specialType > 0) {
+                        hasSpecial = true;
+                        specialRow = i;
+                        specialCol = j + k;
+                        break;
+                    }
+                }
+
+                // Eğer özel şeker varsa önce onu patlat
+                if (hasSpecial) {
+                    switch (resources.gameBoard[specialRow][specialCol].specialType) {
+                    case 1: // Yatay çizgili
+                        triggerFourStripedHorizontal(specialRow, specialCol);
+                        break;
+                    case 2: // Dikey çizgili
+                        triggerFourStripedVertical(specialRow, specialCol);
+                        break;
+                    case 3: // Paket
+                        triggerWrappedPackage(specialRow, specialCol);
+                        break;
+                    case 4: // Renk bombası
+                        triggerFiveColorBomb(specialRow, specialCol, t);
+                        break;
+                    }
+                }
 
                 // Oynanan hamlenin yapıldığı yeri bul
                 int specialIndex = -1;
@@ -876,6 +1141,7 @@ bool checkFourMatchAndMakeStriped() {
             }
         }
     }
+
     // DİKEY
     for (int j = 0; j < gridSize; j++) {
         for (int i = 0; i < gridSize - 3; i++) {
@@ -884,6 +1150,36 @@ bool checkFourMatchAndMakeStriped() {
                 t == resources.gameBoard[i + 1][j].baseType &&
                 t == resources.gameBoard[i + 2][j].baseType &&
                 t == resources.gameBoard[i + 3][j].baseType) {
+
+                // Önce eşleşen şekerler içinde özel şeker var mı kontrol et
+                bool hasSpecial = false;
+                int specialRow = -1, specialCol = -1;
+                for (int k = 0; k < 4; k++) {
+                    if (resources.gameBoard[i + k][j].specialType > 0) {
+                        hasSpecial = true;
+                        specialRow = i + k;
+                        specialCol = j;
+                        break;
+                    }
+                }
+
+                // Eğer özel şeker varsa önce onu patlat
+                if (hasSpecial) {
+                    switch (resources.gameBoard[specialRow][specialCol].specialType) {
+                    case 1: // Yatay çizgili
+                        triggerFourStripedHorizontal(specialRow, specialCol);
+                        break;
+                    case 2: // Dikey çizgili
+                        triggerFourStripedVertical(specialRow, specialCol);
+                        break;
+                    case 3: // Paket
+                        triggerWrappedPackage(specialRow, specialCol);
+                        break;
+                    case 4: // Renk bombası
+                        triggerFiveColorBomb(specialRow, specialCol, t);
+                        break;
+                    }
+                }
 
                 // Oynanan hamlenin yapıldığı yeri bul
                 int specialIndex = -1;
