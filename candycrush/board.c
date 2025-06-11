@@ -2,6 +2,7 @@
 #include "main.h"
 #include "board.h"
 #include "resources.h"
+#include <math.h>
 
 // Global değişkenler
 Vector2 gridOffset;
@@ -126,7 +127,7 @@ void swapCandies(int row1, int col1, int row2, int col2, bool playSound) {
     isSwapping = true;
 }
 
-// Vektör interpolasyonu
+
 Vector2 vector2Lerp(Vector2 a, Vector2 b, float t) {
     Vector2 result;
     result.x = a.x + (b.x - a.x) * t;
@@ -134,7 +135,7 @@ Vector2 vector2Lerp(Vector2 a, Vector2 b, float t) {
     return result;
 }
 
-// Üçlü eşleşme kontrolü
+
 bool hasThreeMatchOnBoard() {
     for (int i = 0; i < gridSize; i++) {
         for (int j = 0; j < gridSize; j++) {
@@ -155,14 +156,14 @@ bool hasThreeMatchOnBoard() {
     return false;
 }
 
-// Geçerli swap kontrolü
+
 bool isValidSwap(int row1, int col1, int row2, int col2) {
     int s1 = resources.gameBoard[row1][col1].specialType;
     int s2 = resources.gameBoard[row2][col2].specialType;
     int t1 = resources.gameBoard[row1][col1].baseType;
     int t2 = resources.gameBoard[row2][col2].baseType;
 
-    // İkisi de normal ve aynı renk ise, swap anlamsız
+    
     if (s1 == 0 && s2 == 0 && t1 == t2)
         return false;
 
@@ -203,7 +204,7 @@ void updateExplodeAnimation(float delta) {
 // Özel şeker eşleşmelerini kontrol etme
 bool checkSpecialCandyMatches() {
     bool found = false;
-    // YATAY
+   
     for (int i = 0; i < gridSize; i++) {
         for (int j = 0; j < gridSize - 2; j++) {
             int t = resources.gameBoard[i][j].baseType;
@@ -216,7 +217,7 @@ bool checkSpecialCandyMatches() {
             if (t == resources.gameBoard[i][j + 1].baseType &&
                 t == resources.gameBoard[i][j + 2].baseType) {
 
-                // Önce çizgili şekerleri kontrol et
+                
                 if (s0 == 1) { triggerFourStripedHorizontal(i, j); found = true; }
                 if (s1 == 1) { triggerFourStripedHorizontal(i, j + 1); found = true; }
                 if (s2 == 1) { triggerFourStripedHorizontal(i, j + 2); found = true; }
@@ -224,12 +225,12 @@ bool checkSpecialCandyMatches() {
                 if (s1 == 2) { triggerFourStripedVertical(i, j + 1); found = true; }
                 if (s2 == 2) { triggerFourStripedVertical(i, j + 2); found = true; }
 
-                // Sonra paket şekerleri kontrol et
+               
                 if (s0 == 3) { triggerWrappedPackage(i, j); found = true; }
                 if (s1 == 3) { triggerWrappedPackage(i, j + 1); found = true; }
                 if (s2 == 3) { triggerWrappedPackage(i, j + 2); found = true; }
 
-                // Normal şekerleri sil
+              
                 if (s0 == 0) {
                     resources.gameBoard[i][j].baseType = -1;
                     resources.gameBoard[i][j].specialType = 0;
@@ -521,27 +522,7 @@ bool spawnCandies() {
     return spawned;
 }
 
-// Şeker düşme animasyonunu güncelleme
-void updateCandyFallAnimation(float fallSpeed) {
-    for (int i = 0; i < gridSize; i++) {
-        for (int j = 0; j < gridSize; j++) {
-            Vector2* pos = &resources.gameBoard[i][j].position;
-            Vector2* target = &resources.gameBoard[i][j].targetPosition;
 
-            float dx = target->x - pos->x;
-            float dy = target->y - pos->y;
-
-            if (fabsf(dx) < 1.0f && fabsf(dy) < 1.0f) {
-                pos->x = target->x;
-                pos->y = target->y;
-            }
-            else {
-                pos->x += dx * fallSpeed;
-                pos->y += dy * fallSpeed;
-            }
-        }
-    }
-}
 
 // Oyun ekranını çizme
 void drawgameScreen() {
