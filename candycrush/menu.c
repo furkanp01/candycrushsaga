@@ -86,7 +86,13 @@ void drawmenuScreen() {
 		highScoresY + (buttonHeight - highScoresTextSize.y) / 2.0f
 	};
 
-	Rectangle highScoreRect = { centerX, settingsY + 100, buttonWidth, buttonHeight };
+	float exitY = highScoresY + 100;
+	Rectangle exitRect = { centerX, exitY, buttonWidth, buttonHeight };
+	Vector2 exitTextSize = MeasureTextEx(resources.myFont, "Exit", fontSize, spacing);
+	Vector2 exitTextPos = {
+		centerX + (buttonWidth - highScoresTextSize.x) / 2.0f+50,
+		exitY + (buttonHeight - highScoresTextSize.y) / 2.0f
+	};
 
 	DrawRectangleRounded(playRect, 0.3f, 10, ORANGE);
 
@@ -100,6 +106,9 @@ void drawmenuScreen() {
 
 	DrawTextEx(resources.myFont, "High Scores", highScoresTextPos, fontSize, spacing, BLACK);
 
+	DrawRectangleRounded(exitRect, 0.3f, 10, RED);
+
+	DrawTextEx(resources.myFont, "Exit", exitTextPos, fontSize, spacing, WHITE);
 
 	if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 		Vector2 mouseposS = GetMousePosition();
@@ -111,9 +120,13 @@ void drawmenuScreen() {
 			PlaySound(resources.clickButton);
 			resources.showmenuSettings = true;
 		}
-		if (CheckCollisionPointRec(mouseposS, highScoreRect) && !resources.showmenuSettings) {
+		if (CheckCollisionPointRec(mouseposS, highScoresRect) && !resources.showmenuSettings) {
 			PlaySound(resources.clickButton);
 			currentState = HIGHSCORES;
+		}
+		if (CheckCollisionPointRec(mouseposS, exitRect) && !resources.showmenuSettings) {
+			PlaySound(resources.clickButton);
+			currentState = QUIT;
 		}
 	}
 
